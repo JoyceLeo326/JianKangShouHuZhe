@@ -1,0 +1,9 @@
+node_modules/
+.expo/
+release/
+expo-codex.log
+expo-go-qr.png
+expo-go-url.txt
+npm-debug.*
+yarn-debug.*
+yarn-error.*

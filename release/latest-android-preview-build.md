@@ -1,0 +1,13 @@
+# ??????????
+
+?????FINISHED
+
+?? ID?fa5d7619-8c5a-42d6-a22e-e6cbf30079e3
+
+APK ?????
+
+https://expo.dev/artifacts/eas/wV8Vruk72EW3GxALaUeq86.apk
+
+Expo ?????
+
+https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/fa5d7619-8c5a-42d6-a22e-e6cbf30079e3
