@@ -1,0 +1,1548 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0E7C86" />
+  <title>健康守护者</title>
+  <style>
+    :root {
+      --bg: #eef3f6;
+      --surface: #ffffff;
+      --surface-soft: #f7fafb;
+      --surface-tint: #eef8f6;
+      --text: #15212f;
+      --muted: #657385;
+      --line: #dfe8ed;
+      --primary: #0e7c86;
+      --primary-2: #13a5a5;
+      --navy: #17253b;
+      --blue: #2f80ed;
+      --green: #26a66f;
+      --amber: #d99424;
+      --red: #d65454;
+      --purple: #6c62c6;
+      --ink-soft: #eaf0f4;
+      --blue-soft: #edf5ff;
+      --green-soft: #eaf8f0;
+      --amber-soft: #fff5dd;
+      --red-soft: #fff0f0;
+      --purple-soft: #f1efff;
+      --shadow: 0 14px 34px rgba(17, 33, 49, .08);
+      --shadow-strong: 0 18px 42px rgba(17, 33, 49, .14);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      color: var(--text);
+      background: #d7e0e7;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body { overflow: hidden; }
+    button,
+    input,
+    select,
+    textarea { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--text);
+      background: var(--surface-soft);
+      outline: none;
+      padding: 12px 13px;
+    }
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(14, 124, 134, .13);
+    }
+    label {
+      display: block;
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .app {
+      position: relative;
+      width: min(100vw, 430px);
+      min-height: 100vh;
+      height: 100vh;
+      margin: 0;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .screen {
+      height: calc(100vh - 88px - env(safe-area-inset-bottom));
+      padding: 16px 16px 20px;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+    .login-screen {
+      width: min(100vw, 430px);
+      min-height: 100vh;
+      padding: 22px 18px;
+      display: grid;
+      align-items: center;
+      background:
+        linear-gradient(160deg, rgba(14,124,134,.12), rgba(47,128,237,.08) 42%, rgba(38,166,111,.08)),
+        var(--bg);
+    }
+    .login-wrap { width: 100%; }
+    .brand {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .brand-mark {
+      width: 78px;
+      height: 78px;
+      margin: 0 auto 14px;
+      border-radius: 28px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--navy), var(--primary) 58%, var(--green));
+      box-shadow: var(--shadow-strong);
+    }
+    .brand-mark .icon { width: 44px; height: 44px; }
+    .brand h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.12;
+      letter-spacing: 0;
+      font-weight: 950;
+    }
+    .brand p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .card {
+      margin-bottom: 13px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid rgba(223, 232, 237, .92);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel {
+      margin-bottom: 13px;
+      padding: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.88));
+      border: 1px solid rgba(255,255,255,.78);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .field { margin-bottom: 12px; }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .btn {
+      min-height: 46px;
+      width: 100%;
+      padding: 0 13px;
+      border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      color: #fff;
+      background: var(--primary);
+      font-weight: 900;
+      white-space: nowrap;
+      transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+    }
+    .btn:active,
+    .quick:active,
+    .icon-btn:active,
+    .nav button:active,
+    .tab:active { transform: scale(.985); }
+    .btn.ghost {
+      color: var(--text);
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+    .btn.green { background: var(--green); }
+    .btn.blue { background: var(--blue); }
+    .btn.amber { background: var(--amber); }
+    .btn.red { background: var(--red); }
+    .btn.small {
+      min-height: 36px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(94px, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .actions.tight { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .icon {
+      width: 21px;
+      height: 21px;
+      flex: 0 0 auto;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .icon.lg {
+      width: 32px;
+      height: 32px;
+    }
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: var(--primary);
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .topbar,
+    .page-head,
+    .section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar { margin: 2px 0 14px; }
+    .eyebrow {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    h2,
+    h3,
+    p { margin-top: 0; }
+    .topbar h2,
+    .page-head h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.18;
+      letter-spacing: 0;
+      font-weight: 950;
+    }
+    .page-head { margin: 2px 0 14px; }
+    .page-head p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .hero {
+      position: relative;
+      min-height: 184px;
+      margin-bottom: 14px;
+      padding: 18px;
+      color: #fff;
+      border-radius: 22px;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,0) 38%),
+        linear-gradient(128deg, #17253b 0%, #0e7c86 62%, #26a66f 100%);
+      box-shadow: var(--shadow-strong);
+    }
+    .hero-content { position: relative; z-index: 1; }
+    .hero small {
+      display: block;
+      margin-bottom: 8px;
+      color: rgba(219, 250, 247, .86);
+      font-size: 13px;
+      font-weight: 850;
+    }
+    .hero h1 {
+      max-width: 290px;
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.32;
+      letter-spacing: 0;
+      font-weight: 950;
+    }
+    .hero p {
+      max-width: 300px;
+      margin: 10px 0 0;
+      color: rgba(255,255,255,.78);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .hero-stat {
+      min-width: 0;
+      padding: 10px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.13);
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .hero-stat strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .hero-stat span {
+      display: block;
+      margin-top: 3px;
+      color: rgba(255,255,255,.73);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .metric { min-height: 132px; margin-bottom: 0; }
+    .metric strong {
+      display: block;
+      margin-top: 12px;
+      font-size: 26px;
+      line-height: 1;
+    }
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 900;
+    }
+    .metric small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .bubble {
+      width: 42px;
+      height: 42px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: var(--primary);
+      background: var(--surface-tint);
+    }
+    .section {
+      margin: 18px 0 10px;
+    }
+    .section h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      font-weight: 950;
+    }
+    .section p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .text-action {
+      padding: 8px 0 8px 10px;
+      color: var(--primary);
+      background: transparent;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .quick {
+      width: 100%;
+      min-height: 138px;
+      padding: 15px;
+      text-align: left;
+      background: #fff;
+      border: 1px solid rgba(223,232,237,.95);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .quick .title { margin-top: 12px; }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .space {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .grow {
+      flex: 1;
+      min-width: 0;
+    }
+    .title {
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.35;
+      font-weight: 950;
+      overflow-wrap: anywhere;
+    }
+    .meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .badge {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: var(--green);
+      background: var(--green-soft);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .badge.warn {
+      color: #9a650e;
+      background: var(--amber-soft);
+    }
+    .badge.off {
+      color: var(--muted);
+      background: var(--ink-soft);
+    }
+    .badge.red {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+    .task {
+      width: 100%;
+      padding: 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      background: transparent;
+      border-bottom: 1px solid #eef3f6;
+    }
+    .task:last-child { border-bottom: 0; }
+    .check {
+      width: 25px;
+      height: 25px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+    }
+    .check.done {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 13px;
+    }
+    .info {
+      padding: 11px;
+      background: var(--surface-soft);
+      border: 1px solid #edf2f4;
+      border-radius: var(--radius);
+    }
+    .info span {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .info strong {
+      display: block;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+    .progress {
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e5edf2;
+    }
+    .progress i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 2px 0 13px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      height: 38px;
+      padding: 0 14px;
+      color: var(--muted);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .tab.active {
+      color: #fff;
+      background: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 8px 18px rgba(14,124,134,.20);
+    }
+    .game-card {
+      padding: 0;
+      overflow: hidden;
+    }
+    .game-top { padding: 16px; }
+    .game-pad {
+      min-height: 188px;
+      margin: 0;
+      padding: 26px 16px;
+      color: #fff;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,0) 45%),
+        linear-gradient(135deg, var(--primary), var(--blue));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      user-select: none;
+    }
+    .game-pad .icon {
+      width: 56px;
+      height: 56px;
+      margin-bottom: 12px;
+    }
+    .game-pad strong {
+      display: block;
+      max-width: 280px;
+      font-size: 19px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+    .game-pad span {
+      display: block;
+      margin-top: 7px;
+      color: rgba(255,255,255,.78);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin: 12px 16px 0;
+      background: var(--surface-soft);
+      border: 1px solid #edf2f4;
+      border-radius: var(--radius);
+    }
+    .stat {
+      padding: 11px 4px;
+      text-align: center;
+    }
+    .stat strong {
+      display: block;
+      font-size: 17px;
+    }
+    .stat span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .game-actions { padding: 0 16px 16px; }
+    .chart {
+      height: 188px;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      padding: 16px 0 2px;
+    }
+    .bar-col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .bar-track {
+      width: 25px;
+      height: 136px;
+      display: flex;
+      align-items: flex-end;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e7eef3;
+    }
+    .bar-fill {
+      width: 100%;
+      border-radius: inherit;
+      background: linear-gradient(180deg, var(--primary-2), var(--primary));
+    }
+    .empty {
+      padding: 28px 16px;
+      text-align: center;
+    }
+    .empty .bubble {
+      margin: 0 auto 12px;
+      color: var(--muted);
+      background: var(--ink-soft);
+    }
+    .empty h3 {
+      margin: 0;
+      font-size: 17px;
+    }
+    .empty p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .nav {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      width: calc(min(100vw, 430px) - 24px);
+      min-height: 68px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      z-index: 20;
+      background: rgba(255,255,255,.96);
+      border: 1px solid #e4edf2;
+      border-radius: 24px;
+      box-shadow: 0 16px 36px rgba(17,33,49,.16);
+      backdrop-filter: blur(14px);
+    }
+    .nav button {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: #8a98a8;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .nav .icon {
+      width: 21px;
+      height: 21px;
+    }
+    .nav .active { color: var(--primary); }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: flex-end;
+      background: rgba(18,32,51,.46);
+    }
+    .modal.show { display: flex; }
+    .sheet {
+      width: min(100vw, 430px);
+      max-height: 88vh;
+      margin: 0;
+      padding: 10px 18px 22px;
+      overflow: auto;
+      background: #fff;
+      border-radius: 28px 28px 0 0;
+      box-shadow: 0 -18px 34px rgba(17,33,49,.16);
+    }
+    .handle {
+      width: 42px;
+      height: 5px;
+      margin: 0 auto 14px;
+      border-radius: 999px;
+      background: #d4dce4;
+    }
+    .sheet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .sheet-head h3 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      font-weight: 950;
+    }
+    .sheet-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .close {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: var(--text);
+      background: var(--surface-soft);
+    }
+    .detail {
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.75;
+    }
+    .toast {
+      position: fixed;
+      left: 18px;
+      bottom: 92px;
+      width: calc(min(100vw, 430px) - 36px);
+      z-index: 60;
+      padding: 12px 14px;
+      color: #fff;
+      background: #17243a;
+      border-radius: var(--radius);
+      box-shadow: 0 12px 28px rgba(17,33,49,.22);
+      font-size: 14px;
+      line-height: 1.45;
+      opacity: 0;
+      transform: translateY(140px);
+      pointer-events: none;
+      transition: .24s ease;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .menu {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 0;
+      text-align: left;
+      background: transparent;
+      border-bottom: 1px solid #eef3f6;
+    }
+    .menu:last-child { border-bottom: 0; }
+    .auth-switch {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 18px;
+      background: #f0f4f8;
+      border-radius: 14px;
+    }
+    .auth-switch button {
+      height: 42px;
+      color: var(--muted);
+      background: transparent;
+      border-radius: 11px;
+      font-size: 15px;
+      font-weight: 850;
+    }
+    .auth-switch button.active {
+      color: var(--primary);
+      background: #fff;
+      box-shadow: 0 6px 14px rgba(17,33,49,.08);
+    }
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 13px;
+    }
+    .chip {
+      width: auto;
+      min-height: 36px;
+      padding: 0 12px;
+      color: var(--muted);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 850;
+    }
+    .chip.active {
+      color: #fff;
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .switch {
+      width: 48px;
+      height: 28px;
+      position: relative;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #d8e2e8;
+      transition: background .16s ease;
+    }
+    .switch i {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(17,33,49,.18);
+      transition: transform .16s ease;
+    }
+    .switch.on {
+      background: var(--primary);
+    }
+    .switch.on i {
+      transform: translateX(20px);
+    }
+    @media (min-width: 500px) {
+      .app,
+      .login-screen {
+        margin: 0 auto;
+        box-shadow: 0 0 0 1px #c7d3db;
+      }
+      .nav {
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .sheet { margin: 0 auto; }
+      .toast {
+        left: 50%;
+        transform: translate(-50%, 140px);
+      }
+      .toast.show { transform: translate(-50%, 0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="app"></div>
+  <div id="modal" class="modal"></div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'jkshz_h5_demo_v6';
+    const date = new Date();
+    const todayText = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const weekday = ['周日','周一','周二','周三','周四','周五','周六'][date.getDay()];
+    const defaultUser = { name: '张医生', role: '康复师', email: 'doctor@jiankang.demo' };
+    const seed = {
+      user: null,
+      tab: 'workbench',
+      trainingTab: 'patients',
+      dataTab: 'records',
+      storageFilter: '全部',
+      settings: { notification: true, sync: true, privacy: true },
+      game: { patient: '李明', duration: 30, left: 30, running: false, score: 0, grip: 0, combo: 0, best: 0 },
+      patients: [
+        { id: 'p1', name: '李明', age: '62', diagnosis: '脑卒中恢复期', side: '右手', stage: '第 4 周', risk: '低风险', next: '今天 15:00', phone: '13800000001', progress: 78 },
+        { id: 'p2', name: '王阿姨', age: '68', diagnosis: '腕关节术后', side: '左手', stage: '第 2 周', risk: '中风险', next: '明天 10:30', phone: '13800000002', progress: 64 }
+      ],
+      devices: [
+        { id: 'd1', name: '智能握力手套 A01', type: '康复手套', status: 'online', battery: 82, signal: 94, patient: '李明', lastSync: '3 分钟前' },
+        { id: 'd2', name: '腕部活动度传感器 B12', type: '角度传感器', status: 'online', battery: 57, signal: 76, patient: '王阿姨', lastSync: '18 分钟前' },
+        { id: 'd3', name: '肌张力采集器 C07', type: '肌电设备', status: 'standby', battery: 21, signal: 18, patient: '未绑定', lastSync: '昨天 19:20' }
+      ],
+      assessments: [
+        { id: 'a1', patient: '李明', date: '2026-05-10', grip: 22, rom: 66, pain: 2, adl: 72, score: 78, note: '握力稳定提升，建议继续低阻力主动训练。' },
+        { id: 'a2', patient: '王阿姨', date: '2026-05-09', grip: 15, rom: 48, pain: 4, adl: 58, score: 64, note: '腕部活动度仍受限，增加热身与被动活动。' }
+      ],
+      prescriptions: [
+        { id: 'rx1', patient: '李明', title: '手指分离控制训练', intensity: '中等', frequency: '每日 2 次', duration: '15 分钟', status: '执行中', focus: '精细动作、抓握稳定性' },
+        { id: 'rx2', patient: '王阿姨', title: '腕关节活动度恢复', intensity: '轻柔', frequency: '每日 3 次', duration: '10 分钟', status: '待确认', focus: '屈伸活动度、疼痛控制' }
+      ],
+      records: [
+        { id: 'r1', patient: '李明', type: '抓握训练', date: '2026-05-10', duration: 18, completion: 92, score: 86 },
+        { id: 'r2', patient: '王阿姨', type: '腕部活动', date: '2026-05-09', duration: 12, completion: 78, score: 73 },
+        { id: 'r3', patient: '李明', type: '精细动作', date: '2026-05-08', duration: 15, completion: 88, score: 81 }
+      ],
+      reports: [
+        { id: 'rp1', patient: '李明', title: '第 4 周康复进展报告', date: '2026-05-10', status: '已生成', summary: '本周握力与完成率均有提升，建议维持当前强度并增加手指分离任务。' },
+        { id: 'rp2', patient: '王阿姨', title: '术后活动度评估报告', date: '2026-05-09', status: '待复核', summary: '疼痛评分下降，腕部活动度恢复偏慢，建议延长热敷和低角度主动训练。' }
+      ],
+      storage: [
+        { id: 's1', title: '评估量表模板', type: '模板', owner: '系统', updated: '2026-05-06', size: '124 KB' },
+        { id: 's2', title: '李明-训练曲线原始数据', type: '数据', owner: '张医生', updated: '2026-05-10', size: '2.1 MB' },
+        { id: 's3', title: '患者知情同意书', type: '文档', owner: '管理员', updated: '2026-05-02', size: '430 KB' }
+      ],
+      tasks: [
+        { id: 't1', title: '李明 15:00 复评', meta: '握力 + ROM', priority: '高', done: false },
+        { id: 't2', title: '王阿姨处方复核', meta: '术后第 2 周', priority: '中', done: false },
+        { id: 't3', title: '同步手套 A01 数据', meta: '设备中心', priority: '低', done: true }
+      ]
+    };
+
+    let state = load();
+    let authMode = 'login';
+    let authRole = '康复师';
+    let activeModal = null;
+    let toastTimer = null;
+    let gameTimer = null;
+
+    function clone(value) { return JSON.parse(JSON.stringify(value)); }
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!saved) return clone(seed);
+        return {
+          ...clone(seed),
+          ...saved,
+          settings: { ...seed.settings, ...(saved.settings || {}) },
+          game: { ...seed.game, ...(saved.game || {}) }
+        };
+      } catch (_) {
+        return clone(seed);
+      }
+    }
+    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function uid(prefix) { return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`; }
+    function esc(value) { return String(value ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+    function clamp(value, min = 0, max = 100) { return Math.max(min, Math.min(max, Number(value) || 0)); }
+    function avg(list, key) { return list.length ? Math.round(list.reduce((sum, item) => sum + (Number(item[key]) || 0), 0) / list.length) : 0; }
+    function scoreAssessment(grip, rom, pain, adl) { return clamp(Math.round(Number(grip) * 1.2 + Number(rom) * .35 + Number(adl) * .35 - Number(pain) * 4)); }
+    function val(id) { return document.getElementById(id)?.value || ''; }
+    function svg(body) { return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`; }
+
+    const ICONS = {
+      heart: svg('<path d="M19.5 12.6 12 20l-7.5-7.4a5 5 0 0 1 7.1-7.1l.4.4.4-.4a5 5 0 1 1 7.1 7.1Z"/><path d="M8 13h2l1.3-3 2.2 6 1.5-3h2"/>'),
+      home: svg('<path d="m3 10 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>'),
+      device: svg('<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10 7h4M11 17h2"/>'),
+      training: svg('<path d="M6 12h12"/><path d="M8 8v8"/><path d="M16 8v8"/><path d="M4 10v4"/><path d="M20 10v4"/>'),
+      data: svg('<path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-7"/>'),
+      user: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+      users: svg('<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 10a3 3 0 0 1 0 6"/><path d="M18 20a5 5 0 0 0-3-4"/>'),
+      clipboard: svg('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4a3 3 0 0 1 6 0v2H9Z"/><path d="M9 12h6M9 16h4"/>'),
+      rx: svg('<path d="M9 3h6v5l3 4v7a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-7l3-4Z"/><path d="M9 8h6"/><path d="M10 15h4M12 13v4"/>'),
+      play: svg('<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4Z"/>'),
+      report: svg('<path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v5h5"/><path d="M10 13h5M10 17h5"/>'),
+      plus: svg('<path d="M12 5v14M5 12h14"/>'),
+      bell: svg('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>'),
+      hand: svg('<path d="M8 13V6a2 2 0 0 1 4 0v6"/><path d="M12 12V5a2 2 0 0 1 4 0v8"/><path d="M16 13V8a2 2 0 0 1 4 0v6a7 7 0 0 1-14 0v-2a2 2 0 1 1 4 0"/>'),
+      radio: svg('<path d="M4 12a8 8 0 0 1 16 0"/><path d="M8 12a4 4 0 0 1 8 0"/><circle cx="12" cy="12" r="1"/><path d="M12 13v7"/>'),
+      pulse: svg('<path d="M3 12h4l2-7 4 14 2-7h6"/>'),
+      folder: svg('<path d="M3 7h7l2 2h9v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>'),
+      lock: svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+      trash: svg('<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 14h10l1-14"/><path d="M9 7V4h6v3"/>'),
+      check: svg('<path d="m5 12 4 4L19 6"/>'),
+      close: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+      sync: svg('<path d="M21 12a9 9 0 0 0-15.4-6.4L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15.4 6.4L21 16"/><path d="M16 16h5v5"/>'),
+      info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/>'),
+      export: svg('<path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4h14v-4"/>')
+    };
+    function icon(name) { return ICONS[name] || ICONS.info; }
+
+    function renderLogin() {
+      return `
+        <div class="login-screen">
+          <div class="login-wrap">
+            <div class="brand">
+              <div class="brand-mark">${icon('heart')}</div>
+              <h1>健康守护者</h1>
+              <p>智能手部康复训练与数据管理平台</p>
+            </div>
+            <div class="panel">
+              <div class="auth-switch">
+                <button class="${authMode === 'login' ? 'active' : ''}" onclick="setAuthMode('login')">登录</button>
+                <button class="${authMode === 'register' ? 'active' : ''}" onclick="setAuthMode('register')">注册</button>
+              </div>
+              ${authMode === 'register' ? `<div class="field">
+                <label>姓名</label>
+                <input id="loginName" value="张医生" autocomplete="name">
+              </div>` : ''}
+              <div class="field">
+                <label>邮箱</label>
+                <input id="loginEmail" type="email" value="doctor@jiankang.demo" autocomplete="username">
+              </div>
+              <div class="field">
+                <label>密码</label>
+                <input id="loginPassword" type="password" value="Demo2026" autocomplete="current-password">
+              </div>
+              <label>身份</label>
+              <div class="chip-row">
+                ${['康复师','医生','管理员'].map((item) => `<button class="chip ${authRole === item ? 'active' : ''}" onclick="setAuthRole('${item}')">${item}</button>`).join('')}
+              </div>
+              <div class="actions">
+                <button class="btn" onclick="submitAuth()">${icon('home')}${authMode === 'login' ? '登录账号' : '创建账号'}</button>
+              </div>
+              <div class="row" style="justify-content:center;margin-top:14px;color:var(--muted);font-size:12px">${icon('lock')}<span>工作区已就绪，可直接进入完整功能</span></div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      render();
+    }
+    function setAuthRole(role) {
+      authRole = role;
+      render();
+    }
+    function submitAuth() {
+      const email = val('loginEmail').trim() || defaultUser.email;
+      const name = authMode === 'register' ? (val('loginName').trim() || '张医生') : (email.split('@')[0] || '张医生');
+      state.user = { name, role: authRole, email };
+      state.tab = 'workbench';
+      save();
+      render();
+      toast(authMode === 'register' ? '账号已创建。' : '已登录。');
+    }
+    function login() {
+      submitAuth();
+    }
+    function registerDemo() {
+      const name = val('registerName').trim() || '演示医生';
+      const role = val('registerRole').trim() || '康复师';
+      const email = val('registerEmail').trim() || 'demo@jiankang.app';
+      state.user = { name, role, email };
+      closeModal();
+      save();
+      render();
+      toast('账号已创建。');
+    }
+    function logout() {
+      state.user = null;
+      state.tab = 'workbench';
+      clearInterval(gameTimer);
+      save();
+      render();
+    }
+    function deleteAccount() {
+      confirmDo('确认删除当前账号与本机演示数据？', () => {
+        localStorage.removeItem(STORAGE_KEY);
+        state = clone(seed);
+        clearInterval(gameTimer);
+        render();
+      });
+    }
+    function resetData() {
+      const user = state.user || defaultUser;
+      state = clone(seed);
+      state.user = user;
+      state.tab = 'profile';
+      save();
+      render();
+      toast('默认演示数据已恢复。');
+    }
+
+    function shell(content) {
+      return `<div class="screen">${content}</div>${nav()}`;
+    }
+    function nav() {
+      const items = [
+        ['workbench','工作台','home'],
+        ['device','设备','device'],
+        ['training','训练','training'],
+        ['data','数据','data'],
+        ['profile','我的','user']
+      ];
+      return `<nav class="nav">${items.map(([key, label, ico]) => `<button class="${state.tab === key ? 'active' : ''}" onclick="setTab('${key}')">${icon(ico)}<span>${label}</span></button>`).join('')}</nav>`;
+    }
+    function setTab(tab) {
+      state.tab = tab;
+      save();
+      render();
+    }
+    function setTraining(tab) {
+      state.trainingTab = tab;
+      save();
+      render();
+    }
+    function setData(tab) {
+      state.dataTab = tab;
+      save();
+      render();
+    }
+    function section(title, subtitle = '', action = '', handler = '') {
+      return `<div class="section"><div><h3>${title}</h3>${subtitle ? `<p>${subtitle}</p>` : ''}</div>${action ? `<button class="text-action" onclick="${handler}">${action}</button>` : ''}</div>`;
+    }
+    function metric(iconName, value, label, sub, color = 'var(--primary)', bg = 'var(--surface-tint)') {
+      return `<div class="card metric"><div class="bubble" style="color:${color};background:${bg}">${icon(iconName)}</div><strong>${esc(value)}</strong><span>${esc(label)}</span><small>${esc(sub)}</small></div>`;
+    }
+    function empty(iconName, title, caption, action, handler) {
+      return `<div class="card empty"><div class="bubble">${icon(iconName)}</div><h3>${esc(title)}</h3><p>${esc(caption)}</p>${action ? `<div class="actions"><button class="btn" onclick="${handler}">${esc(action)}</button></div>` : ''}</div>`;
+    }
+    function patientOptions(selected) {
+      return state.patients.map((p) => `<option ${p.name === selected ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+    }
+
+    function renderWorkbench() {
+      const online = state.devices.filter((d) => d.status === 'online').length;
+      const score = avg(state.assessments, 'score');
+      const completion = avg(state.records, 'completion');
+      return shell(`
+        <div class="topbar">
+          <div><div class="eyebrow">${todayText} · ${weekday}</div><h2>工作台</h2></div>
+          <button class="icon-btn" onclick="openModal('assessment')">${icon('plus')}</button>
+        </div>
+        <section class="hero">
+          <div class="hero-content">
+            <small>今日康复概览</small>
+            <h1>重点患者 ${state.patients.length} 位，设备在线 ${online} 台</h1>
+            <p>复评、处方、训练记录和阶段报告均可在本演示中闭环完成。</p>
+            <div class="hero-stats">
+              <div class="hero-stat"><strong>${score}</strong><span>综合评分</span></div>
+              <div class="hero-stat"><strong>${completion}%</strong><span>完成率</span></div>
+              <div class="hero-stat"><strong>${state.reports.length}</strong><span>报告</span></div>
+            </div>
+          </div>
+        </section>
+        <div class="grid">
+          ${metric('users', state.patients.length, '患者', '在管人数')}
+          ${metric('device', `${online}/${state.devices.length}`, '设备', '在线状态', 'var(--blue)', 'var(--blue-soft)')}
+          ${metric('clipboard', score, '最新评估', '综合评估', 'var(--green)', 'var(--green-soft)')}
+          ${metric('training', `${completion}%`, '训练完成率', '训练记录', 'var(--amber)', 'var(--amber-soft)')}
+        </div>
+        ${section('快捷操作', '评估、处方、训练和报告一键进入')}
+        <div class="grid">
+          <button class="quick" onclick="openModal('assessment')"><div class="bubble">${icon('clipboard')}</div><div class="title">新建评估</div><div class="meta">记录握力、活动度和疼痛评分</div></button>
+          <button class="quick" onclick="openModal('prescription')"><div class="bubble" style="color:var(--green);background:var(--green-soft)">${icon('rx')}</div><div class="title">生成处方</div><div class="meta">按训练重点生成康复方案</div></button>
+          <button class="quick" onclick="setTab('training');setTraining('game')"><div class="bubble" style="color:var(--amber);background:var(--amber-soft)">${icon('training')}</div><div class="title">开始训练</div><div class="meta">进入互动抓握任务</div></button>
+          <button class="quick" onclick="setTab('data');setData('reports')"><div class="bubble" style="color:var(--purple);background:var(--purple-soft)">${icon('report')}</div><div class="title">康复报告</div><div class="meta">查看阶段进展总结</div></button>
+        </div>
+        ${section('今日任务')}
+        <div class="card">${state.tasks.map((t) => `<button class="task" onclick="toggleTask('${t.id}')"><span class="check ${t.done ? 'done' : ''}">${t.done ? icon('check') : ''}</span><span class="grow"><span class="title" style="${t.done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(t.title)}</span><span class="meta">${esc(t.meta)}</span></span><span class="badge ${t.priority === '高' ? 'warn' : ''}">${esc(t.priority)}</span></button>`).join('')}</div>
+        ${section('患者概览', '', '查看全部', "setTab('training');setTraining('patients')")}
+        ${state.patients.slice(0, 2).map(patientCard).join('') || empty('users', '暂无患者档案', '先建立患者档案，再录入评估和训练处方。', '新增患者', "openModal('patient')")}
+      `);
+    }
+    function toggleTask(id) {
+      state.tasks = state.tasks.map((t) => t.id === id ? { ...t, done: !t.done } : t);
+      save();
+      render();
+    }
+
+    function renderDevice() {
+      const online = state.devices.filter((d) => d.status === 'online').length;
+      const avgBattery = avg(state.devices, 'battery');
+      return shell(`
+        <div class="page-head"><div><h2>设备管理</h2><p>在线 ${online} 台 · 共 ${state.devices.length} 台设备</p></div><button class="icon-btn" onclick="openModal('device')">${icon('plus')}</button></div>
+        <div class="card"><div class="grid" style="gap:0"><div style="text-align:center"><strong style="font-size:22px">${online}</strong><div class="meta">在线设备</div></div><div style="text-align:center"><strong style="font-size:22px">${avgBattery}%</strong><div class="meta">平均电量</div></div></div></div>
+        ${state.devices.length ? state.devices.map(deviceCard).join('') : empty('device', '暂无设备', '添加康复手套、角度传感器或肌电设备后，可查看状态。', '添加设备', "openModal('device')")}
+      `);
+    }
+    function deviceIcon(type) { return type === '肌电设备' ? 'pulse' : type === '角度传感器' ? 'radio' : 'hand'; }
+    function deviceCard(d) {
+      const online = d.status === 'online';
+      const batteryColor = d.battery > 60 ? 'var(--green)' : d.battery > 30 ? 'var(--amber)' : 'var(--red)';
+      return `<div class="card">
+        <div class="row"><div class="bubble">${icon(deviceIcon(d.type))}</div><div class="grow"><div class="title">${esc(d.name)}</div><div class="meta">${esc(d.type)} · 绑定：${esc(d.patient)}</div></div><span class="badge ${online ? '' : 'off'}">${online ? '在线' : '待连接'}</span></div>
+        <div class="grid" style="margin-top:14px"><div><div class="meta">电量</div><strong style="color:${batteryColor};font-size:18px">${d.battery}%</strong><div class="progress"><i style="width:${clamp(d.battery)}%;background:${batteryColor}"></i></div></div><div><div class="meta">信号</div><strong style="font-size:18px">${d.signal}%</strong><div class="progress"><i style="width:${clamp(d.signal)}%;background:${online ? 'var(--blue)' : '#bdc7d1'}"></i></div></div></div>
+        <div class="actions tight"><button class="btn ghost small" onclick="syncDevice('${d.id}')">${icon('sync')}同步</button><button class="btn ghost small" onclick="removeDevice('${d.id}')">${icon('trash')}删除</button><button class="btn ${online ? 'ghost' : ''} small" onclick="toggleDevice('${d.id}')">${online ? '断开' : '连接'}</button></div>
+      </div>`;
+    }
+    function syncDevice(id) {
+      state.devices = state.devices.map((d) => d.id === id ? { ...d, signal: d.status === 'online' ? 96 : d.signal, lastSync: '刚刚' } : d);
+      save();
+      render();
+      toast('设备数据已同步。');
+    }
+    function toggleDevice(id) {
+      state.devices = state.devices.map((d) => d.id === id ? { ...d, status: d.status === 'online' ? 'standby' : 'online', signal: d.status === 'online' ? 18 : 88, lastSync: d.status === 'online' ? d.lastSync : '刚刚' } : d);
+      save();
+      render();
+    }
+    function removeDevice(id) {
+      confirmDo('确认删除这台设备？', () => {
+        state.devices = state.devices.filter((d) => d.id !== id);
+        save();
+        render();
+      });
+    }
+
+    function renderTraining() {
+      const tabs = [['patients','患者'], ['assessment','评估'], ['prescription','处方'], ['game','互动训练']];
+      const body = state.trainingTab === 'patients' ? renderPatients() : state.trainingTab === 'assessment' ? renderAssessments() : state.trainingTab === 'prescription' ? renderPrescriptions() : renderGame();
+      return shell(`<div class="page-head"><div><h2>训练中心</h2><p>患者建档、评估、处方与互动训练</p></div></div><div class="tabs">${tabs.map(([k, t]) => `<button class="tab ${state.trainingTab === k ? 'active' : ''}" onclick="setTraining('${k}')">${esc(t)}</button>`).join('')}</div>${body}`);
+    }
+    function patientCard(p) {
+      return `<div class="card"><div class="row"><div class="bubble">${icon('user')}</div><div class="grow"><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.age)} 岁 · ${esc(p.diagnosis)}</div></div><span class="badge ${p.risk === '中风险' ? 'warn' : ''}">${esc(p.risk)}</span></div><div class="info-grid"><div class="info"><span>患侧</span><strong>${esc(p.side)}</strong></div><div class="info"><span>阶段</span><strong>${esc(p.stage)}</strong></div><div class="info"><span>下次安排</span><strong>${esc(p.next)}</strong></div><div class="info"><span>进展</span><strong>${clamp(p.progress)}%</strong></div></div>${state.tab === 'training' ? `<div class="actions"><button class="btn ghost" onclick="removePatient('${p.id}')">${icon('trash')}删除档案</button></div>` : ''}</div>`;
+    }
+    function renderPatients() {
+      return `${section('患者档案', '', '新增', "openModal('patient')")}${state.patients.length ? state.patients.map(patientCard).join('') : empty('users', '暂无患者档案', '先建立患者档案，再录入评估和训练处方。', '新增患者', "openModal('patient')")}`;
+    }
+    function removePatient(id) {
+      confirmDo('确认删除这个患者基础档案？历史评估、训练和报告会保留。', () => {
+        state.patients = state.patients.filter((p) => p.id !== id);
+        save();
+        render();
+      });
+    }
+    function renderAssessments() {
+      return `${section('评估记录', '', '新建评估', "openModal('assessment')")}${state.assessments.length ? state.assessments.map((a) => `<div class="card"><div class="space"><div><div class="title">${esc(a.patient)}</div><div class="meta">${esc(a.date)} · 综合评分</div></div><div class="bubble" style="background:var(--primary);color:#fff">${a.score}</div></div><div class="info-grid"><div class="info"><span>握力</span><strong>${a.grip}kg</strong></div><div class="info"><span>活动度</span><strong>${a.rom}%</strong></div><div class="info"><span>疼痛</span><strong>${a.pain}/10</strong></div><div class="info"><span>ADL</span><strong>${a.adl}%</strong></div></div><p class="meta" style="margin-top:10px">${esc(a.note)}</p></div>`).join('') : empty('clipboard', '暂无评估记录', '新建评估后会自动计算综合评分。', '新建评估', "openModal('assessment')")}`;
+    }
+    function renderPrescriptions() {
+      return `${section('康复处方', '', '智能生成', "openModal('prescription')")}${state.prescriptions.length ? state.prescriptions.map((r) => `<div class="card"><div class="space"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.patient)} · ${esc(r.focus)}</div></div><span class="badge ${r.status === '执行中' ? '' : 'warn'}">${esc(r.status)}</span></div><div class="info-grid"><div class="info"><span>强度</span><strong>${esc(r.intensity)}</strong></div><div class="info"><span>频次</span><strong>${esc(r.frequency)}</strong></div><div class="info"><span>时长</span><strong>${esc(r.duration)}</strong></div><div class="info"><span>状态</span><strong>${esc(r.status)}</strong></div></div><div class="actions"><button class="btn ${r.status === '执行中' ? 'ghost' : 'green'}" onclick="toggleRx('${r.id}')">${r.status === '执行中' ? '暂停处方' : '开始执行'}</button></div></div>`).join('') : empty('rx', '暂无康复处方', '可根据评估结果生成训练处方。', '生成处方', "openModal('prescription')")}`;
+    }
+    function toggleRx(id) {
+      state.prescriptions = state.prescriptions.map((r) => r.id === id ? { ...r, status: r.status === '执行中' ? '已暂停' : '执行中' } : r);
+      save();
+      render();
+    }
+    function renderGame() {
+      const g = state.game;
+      if (!state.patients.find((p) => p.name === g.patient) && state.patients[0]) g.patient = state.patients[0].name;
+      return `${section('互动抓握训练', '实时模拟握力采集，完成后自动生成记录')}
+        <div class="card game-card">
+          <div class="game-top">
+            <div class="space"><div><div class="title">${esc(g.patient || '未选择患者')}</div><div class="meta">本轮剩余 ${g.left}s · 已记录 ${state.records.length} 条</div></div><div class="bubble" style="background:var(--surface-tint)">${g.score}</div></div>
+            <div class="field" style="margin-top:12px"><label>患者</label><select onchange="state.game.patient=this.value;save()" value="${esc(g.patient)}">${patientOptions(g.patient)}</select></div>
+          </div>
+          <div class="game-pad" onclick="tapGrip()">${icon('hand')}<strong>${g.running ? '一次有效抓握已就绪' : '开始后进行抓握训练'}</strong><span>实时握力 ${g.grip}% · 连续 ${g.combo} 次</span></div>
+          <div class="stat-row"><div class="stat"><strong>${g.left}s</strong><span>剩余</span></div><div class="stat"><strong>${g.best}</strong><span>最佳</span></div><div class="stat"><strong>${g.duration}s</strong><span>时长</span></div></div>
+          <div class="actions game-actions"><button class="btn green" onclick="startGame()">开始训练</button><button class="btn ghost" onclick="pauseGame()">暂停</button><button class="btn ghost" onclick="finishGame()">完成本轮</button></div>
+        </div>`;
+    }
+    function startGame() {
+      clearInterval(gameTimer);
+      state.game = { ...state.game, left: 30, duration: 30, running: true, score: 0, grip: 0, combo: 0, patient: state.game.patient || state.patients[0]?.name || '未命名' };
+      save();
+      render();
+      gameTimer = setInterval(() => {
+        if (!state.game.running) return;
+        state.game.left -= 1;
+        if (state.game.left <= 0) finishGame();
+        save();
+        render();
+      }, 1000);
+    }
+    function pauseGame() {
+      state.game.running = false;
+      clearInterval(gameTimer);
+      save();
+      render();
+    }
+    function tapGrip() {
+      if (!state.game.running) {
+        toast('请先开始训练。');
+        return;
+      }
+      const gain = Math.floor(5 + Math.random() * 9);
+      state.game.grip = clamp(35 + gain * 6 + state.game.combo * 2);
+      state.game.combo += 1;
+      state.game.score = clamp(state.game.score + gain, 0, 120);
+      if (navigator.vibrate) navigator.vibrate(18);
+      save();
+      render();
+    }
+    function finishGame() {
+      if (!state.game.running && state.game.score === 0) {
+        toast('请先开始训练。');
+        return;
+      }
+      clearInterval(gameTimer);
+      const g = state.game;
+      state.game.running = false;
+      state.game.left = Math.max(0, g.left);
+      state.game.best = Math.max(g.best, g.score);
+      state.records = [{ id: uid('r'), patient: g.patient, type: '抓握互动训练', date: todayText, duration: 1, completion: clamp(Math.round(g.score / 30 * 12)), score: clamp(g.score) }, ...state.records];
+      save();
+      render();
+      toast('训练结束，记录已生成。');
+    }
+
+    function renderData() {
+      const tabs = [['records','记录'], ['reports','报告'], ['analytics','分析'], ['storage','资料']];
+      const body = state.dataTab === 'records' ? renderRecords() : state.dataTab === 'reports' ? renderReports() : state.dataTab === 'analytics' ? renderAnalytics() : renderStorage();
+      return shell(`<div class="page-head"><div><h2>数据中心</h2><p>训练记录、康复报告与趋势分析</p></div></div><div class="tabs">${tabs.map(([k, t]) => `<button class="tab ${state.dataTab === k ? 'active' : ''}" onclick="setData('${k}')">${esc(t)}</button>`).join('')}</div>${body}`);
+    }
+    function renderRecords() {
+      return `${section('训练记录', '', '新增', "openModal('record')")}${state.records.length ? state.records.map((r) => `<div class="card"><div class="space"><div><div class="title">${esc(r.patient)}</div><div class="meta">${esc(r.type)} · ${esc(r.date)}</div></div><strong style="color:var(--primary);font-size:20px">${r.score} 分</strong></div><div class="row" style="margin-top:12px"><span class="meta">训练 ${r.duration} 分钟</span><div class="grow"><div class="progress"><i style="width:${clamp(r.completion)}%;background:var(--green)"></i></div></div><span class="meta">${r.completion}%</span></div><div class="actions"><button class="btn ghost" onclick="removeRecord('${r.id}')">${icon('trash')}删除记录</button></div></div>`).join('') : empty('data', '暂无训练记录', '新增记录或完成互动训练后会自动展示。', '新增记录', "openModal('record')")}`;
+    }
+    function removeRecord(id) {
+      confirmDo('确认删除这条训练记录？', () => {
+        state.records = state.records.filter((r) => r.id !== id);
+        save();
+        render();
+      });
+    }
+    function renderReports() {
+      return `${section('康复报告', '', '生成', "openModal('report')")}${state.reports.length ? state.reports.map((r) => `<div class="card"><div class="space"><div class="grow"><div class="title">${esc(r.title)}</div><div class="meta">${esc(r.patient)} · ${esc(r.date)}</div></div><span class="badge ${r.status === '待复核' ? 'warn' : ''}">${esc(r.status)}</span></div><p class="detail" style="margin:10px 0 0">${esc(r.summary)}</p><div class="actions tight"><button class="btn ghost" onclick="viewReport('${r.id}')">查看</button><button class="btn" onclick="exportReport('${r.id}')">${icon('export')}导出</button><button class="btn ghost" onclick="removeReport('${r.id}')">${icon('trash')}删除</button></div></div>`).join('') : empty('report', '暂无康复报告', '可根据当前训练记录生成阶段报告。', '生成报告', "openModal('report')")}`;
+    }
+    function viewReport(id) {
+      activeModal = { type: 'viewReport', report: state.reports.find((r) => r.id === id) };
+      renderModal();
+    }
+    function exportReport(id) {
+      const r = state.reports.find((item) => item.id === id);
+      if (!r) return;
+      const blob = new Blob([`${r.title}\n患者：${r.patient}\n日期：${r.date}\n状态：${r.status}\n\n${r.summary}`], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${r.title}.txt`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast('报告已导出。');
+    }
+    function removeReport(id) {
+      confirmDo('确认删除这份报告？', () => {
+        state.reports = state.reports.filter((r) => r.id !== id);
+        save();
+        render();
+      });
+    }
+    function renderAnalytics() {
+      const avgScore = avg(state.records, 'score');
+      const avgCompletion = avg(state.records, 'completion');
+      const totalMinutes = state.records.reduce((sum, r) => sum + Number(r.duration || 0), 0);
+      const chart = state.records.slice(0, 5).reverse();
+      return `${section('趋势分析', '基于当前训练记录实时汇总')}
+        <div class="grid">
+          ${metric('data', avgScore, '平均分', '训练表现')}
+          ${metric('clipboard', `${avgCompletion}%`, '完成率', '任务完成', 'var(--green)', 'var(--green-soft)')}
+          ${metric('training', totalMinutes, '总时长', '分钟', 'var(--amber)', 'var(--amber-soft)')}
+          ${metric('report', state.reports.length, '报告', '已生成', 'var(--purple)', 'var(--purple-soft)')}
+        </div>
+        <div class="card"><div class="title">近 5 次训练得分</div>${chart.length ? `<div class="chart">${chart.map((r) => `<div class="bar-col"><div class="bar-track"><div class="bar-fill" style="height:${clamp(r.score)}%"></div></div><span class="meta">${esc(r.patient.slice(0, 1))}</span></div>`).join('')}</div>` : `<p class="meta">暂无可分析的训练记录。</p>`}</div>`;
+    }
+    function renderStorage() {
+      const filters = ['全部', '模板', '数据', '文档'];
+      const list = state.storage.filter((s) => state.storageFilter === '全部' || s.type === state.storageFilter);
+      return `${section('资料仓储', '原始数据、模板与归档文档')}
+        <div class="tabs">${filters.map((f) => `<button class="tab ${state.storageFilter === f ? 'active' : ''}" onclick="state.storageFilter='${f}';save();render()">${f}</button>`).join('')}</div>
+        ${list.map((s) => `<div class="card"><div class="row"><div class="bubble">${icon(s.type === '数据' ? 'data' : s.type === '模板' ? 'clipboard' : 'folder')}</div><div class="grow"><div class="title">${esc(s.title)}</div><div class="meta">${esc(s.type)} · ${esc(s.owner)} · ${esc(s.updated)}</div></div><strong class="meta">${esc(s.size)}</strong></div></div>`).join('')}`;
+    }
+
+    function renderProfile() {
+      return shell(`
+        <section class="hero" style="text-align:center;min-height:auto">
+          <div class="hero-content"><div class="brand-mark" style="width:74px;height:74px;background:#fff;color:var(--primary);box-shadow:none">${icon('user')}</div><h1 style="max-width:none">${esc(state.user.name)}</h1><p style="max-width:none">${esc(state.user.role)} · 健康守护者</p></div>
+        </section>
+        ${section('账号服务')}
+        <div class="card">
+          ${menu('个人资料', '姓名、身份与联系方式', "openModal('profile')", 'user')}
+          ${menu('数据管理', '患者、设备、训练与报告统一管理', "toast('当前数据已更新。')", 'data')}
+          ${menu('恢复默认数据', '恢复默认患者、设备和记录', 'resetData()', 'sync')}
+        </div>
+        ${section('系统设置')}
+        <div class="card">
+          ${toggleRow('康复提醒通知', 'notification')}
+          ${toggleRow('训练数据自动同步', 'sync')}
+          ${toggleRow('隐私保护模式', 'privacy')}
+        </div>
+        ${section('合规与更多')}
+        <div class="card">
+          ${menu('关于应用', '版本、版权与系统说明', "openModal('about')", 'info')}
+          ${menu('隐私政策', '信息收集、保存和删除说明', "openModal('privacy')", 'lock')}
+          ${menu('用户协议', '服务范围和健康提示', "openModal('agreement')", 'report')}
+          ${menu('注销账号与删除数据', '删除当前账号和相关数据', 'deleteAccount()', 'trash', true)}
+          ${menu('退出登录', '返回登录页', 'logout()', 'close', true)}
+        </div>`);
+    }
+    function menu(title, caption, handler, iconName, danger = false) {
+      return `<button class="menu" onclick="${handler}"><div class="bubble" style="${danger ? 'color:var(--red);background:var(--red-soft)' : ''}">${icon(iconName)}</div><div class="grow"><div class="title" style="${danger ? 'color:var(--red)' : ''}">${esc(title)}</div><div class="meta">${esc(caption)}</div></div></button>`;
+    }
+    function toggleRow(label, key) {
+      return `<button class="menu" onclick="toggleSetting('${key}')"><div class="grow"><div class="title">${esc(label)}</div></div><span class="switch ${state.settings[key] ? 'on' : ''}" aria-hidden="true"><i></i></span></button>`;
+    }
+    function toggleSetting(key) {
+      state.settings[key] = !state.settings[key];
+      save();
+      render();
+    }
+
+    function openModal(type) {
+      activeModal = { type };
+      renderModal();
+    }
+    function closeModal() {
+      activeModal = null;
+      renderModal();
+    }
+    function modalBase(title, subtitle, body) {
+      return `<div class="sheet"><div class="handle"></div><div class="sheet-head"><div><h3>${title}</h3>${subtitle ? `<p>${subtitle}</p>` : ''}</div><button class="close" onclick="closeModal()">${icon('close')}</button></div>${body}</div>`;
+    }
+    function renderModal() {
+      const host = document.getElementById('modal');
+      if (!activeModal) {
+        host.classList.remove('show');
+        host.innerHTML = '';
+        return;
+      }
+      const content = modalContent(activeModal.type);
+      host.innerHTML = modalBase(content.title, content.subtitle, content.body);
+      host.classList.add('show');
+    }
+    function modalContent(type) {
+      if (type === 'register') return { title: '新建演示账号', subtitle: '账号会保存在当前浏览器', body: `<div class="field"><label>姓名</label><input id="registerName" value="张医生"></div><div class="field"><label>身份</label><input id="registerRole" value="康复师"></div><div class="field"><label>邮箱</label><input id="registerEmail" type="email" value="demo@jiankang.app"></div><div class="actions"><button class="btn" onclick="registerDemo()">创建并进入</button></div>` };
+      if (type === 'device') return { title: '添加设备', subtitle: '录入设备后自动加入管理列表', body: `<div class="field"><label>设备名称</label><input id="deviceName" placeholder="例如：智能握力手套 A02"></div><div class="field"><label>设备类型</label><select id="deviceType"><option>康复手套</option><option>角度传感器</option><option>肌电设备</option></select></div><div class="field"><label>绑定患者</label><input id="devicePatient" placeholder="可暂不填写"></div><div class="actions"><button class="btn" onclick="addDevice()">保存设备</button></div>` };
+      if (type === 'patient') return { title: '新增患者', subtitle: '建立患者基础档案', body: `<div class="field"><label>姓名</label><input id="patientName" placeholder="请输入患者姓名"></div><div class="field"><label>年龄</label><input id="patientAge" type="number" placeholder="请输入年龄"></div><div class="field"><label>诊断类型</label><select id="patientDiagnosis"><option>脑卒中恢复期</option><option>腕关节术后</option><option>帕金森</option><option>骨折术后</option></select></div><div class="field"><label>患侧</label><select id="patientSide"><option>右手</option><option>左手</option><option>双手</option></select></div><div class="field"><label>联系方式</label><input id="patientPhone" placeholder="可选"></div><div class="actions"><button class="btn" onclick="addPatient()">保存档案</button></div>` };
+      if (type === 'assessment') return { title: '新建康复评估', subtitle: '录入关键指标后自动计算综合评分', body: `<div class="field"><label>患者</label><select id="assPatient">${patientOptions(state.patients[0]?.name)}</select></div><div class="field"><label>握力 kg</label><input id="assGrip" type="number" value="20"></div><div class="field"><label>关节活动度 %</label><input id="assRom" type="number" value="60"></div><div class="field"><label>疼痛评分</label><input id="assPain" type="number" value="2"></div><div class="field"><label>日常生活能力 %</label><input id="assAdl" type="number" value="70"></div><div class="field"><label>备注</label><textarea id="assNote" placeholder="可选"></textarea></div><div class="actions"><button class="btn" onclick="addAssessment()">保存评估</button></div>` };
+      if (type === 'prescription') return { title: '智能生成处方', subtitle: '生成结果需康复师复核后执行', body: `<div class="field"><label>患者</label><select id="rxPatient">${patientOptions(state.patients[0]?.name)}</select></div><div class="field"><label>训练重点</label><select id="rxFocus"><option>抓握稳定性</option><option>手指分离</option><option>腕部活动度</option><option>精细动作</option></select></div><div class="field"><label>训练强度</label><select id="rxIntensity"><option>中等</option><option>轻柔</option><option>进阶</option></select></div><div class="field"><label>单次时长（分钟）</label><input id="rxDuration" type="number" value="15"></div><div class="actions"><button class="btn" onclick="addPrescription()">生成处方</button></div>` };
+      if (type === 'record') return { title: '新增训练记录', subtitle: '手动补录线下训练数据', body: `<div class="field"><label>患者</label><input id="recordPatient" value="${esc(state.patients[0]?.name || '李明')}"></div><div class="field"><label>训练类型</label><input id="recordType" value="抓握训练"></div><div class="field"><label>训练时长（分钟）</label><input id="recordDuration" type="number" value="15"></div><div class="field"><label>训练得分</label><input id="recordScore" type="number" value="80"></div><div class="actions"><button class="btn" onclick="addRecord()">保存记录</button></div>` };
+      if (type === 'report') return { title: '生成康复报告', subtitle: '阶段报告可用于复核与归档', body: `<div class="field"><label>患者</label><input id="reportPatient" value="${esc(state.patients[0]?.name || '李明')}"></div><div class="field"><label>报告标题</label><input id="reportTitle" value="阶段康复报告"></div><div class="field"><label>报告摘要</label><textarea id="reportSummary" placeholder="不填写则自动生成摘要"></textarea></div><div class="actions"><button class="btn" onclick="addReport()">生成报告</button></div>` };
+      if (type === 'viewReport') {
+        const r = activeModal.report;
+        return { title: '报告详情', subtitle: r ? `${esc(r.patient)} · ${esc(r.date)}` : '', body: r ? `<div class="title" style="font-size:18px;margin-bottom:12px">${esc(r.title)}</div><p class="detail">${esc(r.summary)}</p><div class="actions"><button class="btn" onclick="closeModal()">关闭</button></div>` : `<p class="detail">报告不存在。</p>` };
+      }
+      if (type === 'profile') return { title: '编辑资料', subtitle: '更新当前账号信息', body: `<div class="field"><label>姓名</label><input id="profileName" value="${esc(state.user.name)}"></div><div class="field"><label>身份</label><input id="profileRole" value="${esc(state.user.role)}"></div><div class="actions"><button class="btn" onclick="saveProfile()">保存资料</button></div>` };
+      if (type === 'privacy') return { title: '隐私政策', subtitle: '隐私与数据说明', body: `<p class="detail">健康守护者会根据功能需要处理账号资料、患者档案、设备状态、评估记录、训练处方、训练记录、康复报告和资料条目。</p><p class="detail">上述数据仅用于提供康复管理、训练记录、趋势分析和报告展示功能，不用于广告画像，不向无关第三方出售。</p><p class="detail">你可以在“我的 - 注销账号与删除数据”中删除当前账号及相关数据。</p>` };
+      if (type === 'agreement') return { title: '用户协议', subtitle: '服务范围与健康提示', body: `<p class="detail">健康守护者提供康复过程记录、设备管理、评估数据录入、训练处方生成、互动训练和阶段报告等功能。</p><p class="detail">本应用用于康复管理辅助，不提供医疗诊断，不替代医生、康复师或其他专业医疗人员意见，也不用于急救医疗服务。</p><p class="detail">用户应确保录入信息真实、合法，并在专业人员指导下进行康复训练和健康决策。</p>` };
+      return { title: '关于健康守护者', subtitle: '版本 1.0.0', body: `<p class="detail">健康守护者是一款面向手部康复训练场景的移动端应用，覆盖患者档案、设备管理、评估记录、训练处方、互动训练、数据报告、账号体系和数据删除能力。</p><p class="detail">系统聚焦康复训练过程管理，通过可视化指标、任务提醒和阶段报告帮助康复师更高效完成日常工作。</p>` };
+    }
+
+    function addDevice() {
+      const name = val('deviceName').trim();
+      if (!name) return toast('请输入设备名称。');
+      state.devices = [{ id: uid('d'), name, type: val('deviceType'), status: 'online', battery: 100, signal: 92, patient: val('devicePatient').trim() || '未绑定', lastSync: '刚刚' }, ...state.devices];
+      closeModal();
+      save();
+      render();
+      toast('设备已添加。');
+    }
+    function addPatient() {
+      const name = val('patientName').trim();
+      const age = val('patientAge').trim();
+      if (!name || !age) return toast('请填写姓名和年龄。');
+      state.patients = [{ id: uid('p'), name, age, diagnosis: val('patientDiagnosis'), side: val('patientSide'), stage: '第 1 周', risk: '低风险', next: '待安排', phone: val('patientPhone').trim(), progress: 52 }, ...state.patients];
+      closeModal();
+      save();
+      render();
+      toast('患者档案已保存。');
+    }
+    function addAssessment() {
+      const grip = Number(val('assGrip') || 0);
+      const rom = Number(val('assRom') || 0);
+      const pain = Number(val('assPain') || 0);
+      const adl = Number(val('assAdl') || 0);
+      state.assessments = [{ id: uid('a'), patient: val('assPatient') || '未命名', date: todayText, grip, rom, pain, adl, score: scoreAssessment(grip, rom, pain, adl), note: val('assNote').trim() || '已完成基础评估，建议结合处方训练。' }, ...state.assessments];
+      closeModal();
+      save();
+      render();
+      toast('评估已保存。');
+    }
+    function addPrescription() {
+      const focus = val('rxFocus');
+      const intensity = val('rxIntensity');
+      state.prescriptions = [{ id: uid('rx'), patient: val('rxPatient') || '未命名', title: `${focus}训练方案`, intensity, frequency: intensity === '轻柔' ? '每日 3 次' : '每日 2 次', duration: `${val('rxDuration') || 15} 分钟`, status: '待确认', focus }, ...state.prescriptions];
+      closeModal();
+      save();
+      render();
+      toast('处方已生成。');
+    }
+    function addRecord() {
+      const score = clamp(val('recordScore'));
+      state.records = [{ id: uid('r'), patient: val('recordPatient').trim() || '未命名', type: val('recordType').trim() || '训练记录', date: todayText, duration: Number(val('recordDuration') || 0), completion: clamp(score + 8), score }, ...state.records];
+      closeModal();
+      save();
+      render();
+      toast('训练记录已保存。');
+    }
+    function addReport() {
+      state.reports = [{ id: uid('rp'), patient: val('reportPatient').trim() || '未命名', title: val('reportTitle').trim() || '康复报告', date: todayText, status: '已生成', summary: val('reportSummary').trim() || '系统已根据训练记录生成阶段报告，建议结合医生或康复师复核后用于正式归档。' }, ...state.reports];
+      closeModal();
+      save();
+      render();
+      toast('康复报告已生成。');
+    }
+    function saveProfile() {
+      state.user = { ...state.user, name: val('profileName').trim() || state.user.name, role: val('profileRole').trim() || state.user.role };
+      closeModal();
+      save();
+      render();
+      toast('资料已保存。');
+    }
+
+    function confirmDo(message, action) {
+      if (window.confirm(message)) action();
+    }
+    function toast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
+    }
+    function render() {
+      save();
+      const app = document.getElementById('app');
+      if (!state.user) {
+        app.innerHTML = renderLogin();
+        renderModal();
+        return;
+      }
+      if (state.tab === 'device') app.innerHTML = renderDevice();
+      else if (state.tab === 'training') app.innerHTML = renderTraining();
+      else if (state.tab === 'data') app.innerHTML = renderData();
+      else if (state.tab === 'profile') app.innerHTML = renderProfile();
+      else app.innerHTML = renderWorkbench();
+      renderModal();
+    }
+    function runAutotest(screen = 'reports') {
+      try {
+        state = clone(seed);
+        state.user = { ...defaultUser };
+        state.devices.unshift({ id: uid('d'), name: '智能握力手套 X21', type: '康复手套', status: 'online', battery: 96, signal: 95, patient: '李明', lastSync: '刚刚' });
+        state.patients.unshift({ id: uid('p'), name: '赵先生', age: '60', diagnosis: '脑卒中恢复期', side: '右手', stage: '第 3 周', risk: '低风险', next: '待安排', phone: '', progress: 66 });
+        state.assessments.unshift({ id: uid('a'), patient: '赵先生', date: todayText, grip: 20, rom: 70, pain: 2, adl: 72, score: scoreAssessment(20, 70, 2, 72), note: '已完成基础评估，建议结合处方训练。' });
+        state.prescriptions.unshift({ id: uid('rx'), patient: '赵先生', title: '抓握稳定性训练方案', intensity: '中等', frequency: '每日 2 次', duration: '15 分钟', status: '执行中', focus: '抓握稳定性' });
+        state.records.unshift({ id: uid('r'), patient: '赵先生', type: '抓握互动训练', date: todayText, duration: 1, completion: 96, score: 91 });
+        state.reports.unshift({ id: uid('rp'), patient: '赵先生', title: '阶段康复报告', date: todayText, status: '已生成', summary: '系统已根据训练记录生成阶段报告，建议结合医生或康复师复核后用于正式归档。' });
+        if (screen === 'home') state.tab = 'workbench';
+        else if (screen === 'device') state.tab = 'device';
+        else if (screen === 'training') { state.tab = 'training'; state.trainingTab = 'game'; }
+        else { state.tab = 'data'; state.dataTab = 'reports'; }
+        save();
+        render();
+        document.body.setAttribute('data-autotest', 'ok');
+      } catch (error) {
+        document.body.setAttribute('data-autotest', 'failed');
+        document.body.setAttribute('data-autotest-message', error.message);
+      }
+    }
+
+    window.addEventListener('beforeunload', () => clearInterval(gameTimer));
+    document.getElementById('modal').addEventListener('click', (event) => { if (event.target.id === 'modal') closeModal(); });
+    const params = new URLSearchParams(location.search);
+    if (params.has('autotest')) runAutotest(params.get('screen') || 'reports');
+    else render();
+  </script>
+</body>
+</html>

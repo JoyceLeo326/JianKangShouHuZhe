@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "健康守护者",
+    "slug": "jiankang-shouhuzhe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "jiankangshouhuzhe",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jerry.jiankangshouhuzhe",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.jerry.jiankangshouhuzhe",
+      "versionCode": 1,
+      "permissions": [],
+      "edgeToEdgeEnabled": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-icon-bg.png",
+        "backgroundColor": "#0E8866"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "422ae28b-b8b0-41ab-ade9-7b4b9ee91978"
+      }
+    },
+    "owner": "joyce_leo"
+  }
+}
