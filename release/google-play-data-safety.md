@@ -1,41 +1,45 @@
-# Google Play 数据安全填写参考
+# Google Play Data safety 填写参考
 
-这份内容用于帮助填写 Google Play Console 的 Data safety 表单。实际填写时必须与你最终 App 的真实行为一致。
+官方入口：Play Console > Policy > App content > Data safety
 
-## 当前演示版说明
+官方说明：Google Play 要求所有发布到 Google Play 的应用完成 Data safety 表单；“Collect” 指从 App 将用户数据传输到设备外部。
 
-当前版本主要是本地演示数据，没有真实后端上传逻辑。
+参考链接：
 
-如果你后续接入登录、云数据库、设备同步、统计服务或崩溃分析，那么 Data safety 表单必须按真实情况更新。
+- https://support.google.com/googleplay/android-developer/answer/10787469
 
-## 可能涉及的数据类型
+## 当前构建的建议填写
 
-根据当前产品定位，正式版可能涉及：
+当前 Android 构建未配置公网 `EXPO_PUBLIC_API_BASE_URL`，账号入口和康复数据保存在当前工作区，不会上传到开发者服务器，也未接入广告、统计、崩溃分析或第三方 SDK 数据收集。
 
-- 个人信息：姓名、手机号、用户身份。
-- 健康与健身信息：康复评估、训练记录、握力、疼痛评分、关节活动度、处方记录。
-- 应用活动：功能使用记录、训练完成情况。
-- 设备或其他 ID：设备连接状态、设备编号。
-- 崩溃日志和诊断数据：用于提升应用稳定性。
+因此，按当前构建行为建议：
 
-## 数据用途
+- Does your app collect or share any of the required user data types? `No`
+- Is all of the user data collected by your app encrypted in transit? 当前构建不传输用户数据；如果表单要求回答，选择符合“不收集”的路径。
+- Do you provide a way for users to request that their data is deleted? `Yes`
+- Privacy policy: 必须提供公网 HTTPS 隐私政策 URL。
 
-- 提供应用功能。
-- 账号管理。
-- 健康训练记录和报告展示。
-- 应用分析和错误排查。
+## 如果后续接入公网账号服务
 
-## 是否共享给第三方
+如果正式提交前设置了 `EXPO_PUBLIC_API_BASE_URL`，让 App 把账号资料、患者档案、训练记录或报告上传到服务器，则 Data safety 必须改为 `Yes`，并按真实行为披露：
 
-如果没有接入第三方统计、云服务、广告或 SDK，可填写不共享。
+- Personal info：姓名、邮箱、身份角色。
+- Health and fitness：康复评估、训练记录、疼痛评分、活动度、处方、报告。
+- App activity：训练完成情况、功能使用记录。
+- Device or other IDs：设备编号、连接状态。
+- Diagnostics：如果接入崩溃分析或日志服务，需要披露。
 
-如果接入云数据库、统计 SDK、崩溃分析 SDK，需要根据服务商实际情况填写共享或处理方式。
+数据用途：
 
-## 是否加密传输
+- App functionality
+- Account management
+- Analytics / Diagnostics（仅在接入相应服务时选择）
 
-正式版如果接入服务器，应使用 HTTPS。
+共享给第三方：
 
-## 用户是否可删除数据
+- 当前构建：`No`
+- 接入云服务、统计 SDK、崩溃分析、广告 SDK 后，按服务商实际处理方式填写。
 
-正式版建议提供账号注销或数据删除入口。没有这个能力时，上架审核风险会提高。
+加密传输：
 
+- 接入服务器时必须使用 HTTPS。

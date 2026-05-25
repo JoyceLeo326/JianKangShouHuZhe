@@ -13,7 +13,7 @@ const initialAppData = {
   devices: [
     { id: 'd1', name: '智能握力手套 A01', type: '康复手套', status: 'online', battery: 82, signal: 94, patient: '李明', lastSync: '3分钟前' },
     { id: 'd2', name: '腕部活动度传感器 B12', type: '角度传感器', status: 'online', battery: 57, signal: 76, patient: '王阿姨', lastSync: '18分钟前' },
-    { id: 'd3', name: '肌张力采集器 C07', type: '肌电设备', status: 'offline', battery: 21, signal: 0, patient: '未绑定', lastSync: '昨天 19:20' }
+  { id: 'd3', name: '肌张力采集器 C07', type: '肌电设备', status: 'standby', battery: 21, signal: 18, patient: '未绑定', lastSync: '昨天 19:20' }
   ],
   assessments: [
     { id: 'a1', patient: '李明', date: '2026-04-26', grip: 22, rom: 66, pain: 2, adl: 72, score: 78, note: '握力提升，建议继续低阻力主动训练。' },
@@ -48,19 +48,19 @@ function ensureDb() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_PATH)) {
     const now = new Date().toISOString();
-    const demoUser = {
-      id: 'demo_user',
-      email: 'demo@jiankang.local',
+    const initialUser = {
+      id: 'primary_user',
+      email: 'doctor@jiankang.app',
       name: '张医生',
       role: '康复师',
-      passwordHash: bcrypt.hashSync('12345678', 10),
+      passwordHash: bcrypt.hashSync('Password2026', 10),
       createdAt: now,
       updatedAt: now
     };
     writeDb({
-      users: [demoUser],
+      users: [initialUser],
       appData: {
-        demo_user: { ...initialAppData, updatedAt: now }
+        primary_user: { ...initialAppData, updatedAt: now }
       },
       deletionRequests: []
     });

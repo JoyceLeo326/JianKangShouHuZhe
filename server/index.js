@@ -15,6 +15,10 @@ const PORT = Number(process.env.PORT || 3001);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-change-this-secret-before-production';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
+if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'dev-only-change-this-secret-before-production') {
+  throw new Error('Production server requires a strong JWT_SECRET environment variable.');
+}
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json({ limit: '2mb' }));

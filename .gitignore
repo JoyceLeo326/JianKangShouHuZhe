@@ -6,6 +6,8 @@ node_modules/
 # Expo
 .expo
 .expo/
+/.expo/
+.claude/
 dist/
 web-build/
 expo-env.d.ts
@@ -16,6 +18,15 @@ release/*.apk
 release/*.aab
 release/*.json
 release/*.txt
+release/*.zip
+release/*.log
+release/*.err.log
+release/*.png
+release/github-pages-deploy/
+release/google-play-submit-package-*/
+release/archive-build-history/
+release/layout-check-screenshots/
+release/tools/
 
 # Native
 .kotlin/

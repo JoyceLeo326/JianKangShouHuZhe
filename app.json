@@ -25,7 +25,8 @@
       "edgeToEdgeEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1A9A9B"
+        "backgroundImage": "./assets/adaptive-icon-bg.png",
+        "backgroundColor": "#0E8866"
       }
     },
     "web": {

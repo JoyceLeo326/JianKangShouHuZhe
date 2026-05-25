@@ -1,43 +1,34 @@
-# 健康守护者比赛交付说明
+# 健康守护者交付与上架说明
 
-更新日期：2026-04-27
+更新日期：2026-04-28
 
-## 当前交付结论
+## 当前状态
 
-当前版本建议按“比赛演示交付”处理，不按真正面向公众的大规模医疗产品处理。
+健康守护者已经具备完整移动端功能闭环：账号登录/注册、患者档案、设备管理、康复评估、训练处方、互动训练、数据报告、个人中心、隐私政策、用户协议、账号注销与数据删除。
 
-最快可交付方式是把 APK 发给评委或现场安卓手机安装体验。App 已补齐完整演示闭环：账号登录/注册、患者档案、设备管理、康复评估、训练处方、互动训练、数据报告、隐私政策、用户协议、账号注销与数据删除。
+## 最新构建
 
-## 已生成文件
+新的 Android 构建已经完成：
 
-最新比赛演示 APK：
+- 生产 AAB：`92e84ac2-c9fe-428e-beb8-af6e23023a09`
+- 预览 APK：`16200320-1a96-4d9b-9e9c-3682ea53486c`
 
-`D:\JianKangShouHuZhe\健康守护者-比赛演示版-Android.apk`
+构建页面：
 
-Expo 云端构建页面：
+- https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/92e84ac2-c9fe-428e-beb8-af6e23023a09
+- https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/16200320-1a96-4d9b-9e9c-3682ea53486c
 
-https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/588969c5-3475-4461-ac53-dc3e0fc5343c
+构建完成后：
 
-APK 云端下载地址：
+- `.aab` 用于 Google Play Console 上传。
+- `.apk` 用于安卓手机直接安装测试。
 
-https://expo.dev/artifacts/eas/bW7gyBc9GHsGSYM8iGqs31.apk
+本地文件：
 
-## 推荐给评委的使用方式
+- `release/jiankang-shouhuzhe-production.aab`
+- `release/jiankang-shouhuzhe-preview.apk`
 
-1. 安卓手机打开 APK 链接，下载并安装。
-2. 如果系统提示“未知来源应用”，允许浏览器或文件管理器安装一次。
-3. 打开 App 后可以直接点“离线演示模式”，无需服务器也能完整体验。
-4. 如果现场需要展示真实账号闭环，可以让电脑和手机在同一网络，电脑运行后端服务，再用演示账号登录：
-
-演示账号：`demo@jiankang.local`
-
-演示密码：`12345678`
-
-## 本机后端说明
-
-后端是低成本比赛演示版，数据保存在本机文件：
-
-`server\data\db.json`
+## 账号服务
 
 启动方式：
 
@@ -46,37 +37,45 @@ cd C:\Users\Jerry\Desktop\JianKangShouHuZhe
 npm run server
 ```
 
-后端本地地址：
+本地地址：
 
 `http://127.0.0.1:3001`
 
-当前局域网地址：
+初始账号：
 
-`http://172.20.10.13:3001`
+- 邮箱：`doctor@jiankang.app`
+- 密码：`Password2026`
 
 已提供页面：
 
-- 隐私政策：`http://172.20.10.13:3001/privacy`
-- 用户协议：`http://172.20.10.13:3001/terms`
-- 注销说明：`http://172.20.10.13:3001/account-deletion`
-- 健康应用声明：`http://172.20.10.13:3001/health-disclaimer`
+- 隐私政策：`http://127.0.0.1:3001/privacy`
+- 用户协议：`http://127.0.0.1:3001/terms`
+- 注销说明：`http://127.0.0.1:3001/account-deletion`
+- 健康应用声明：`http://127.0.0.1:3001/health-disclaimer`
 
-## 如果要上 Google Play
-
-Google Play 适合正式公开发布，但不适合赶比赛时间，因为需要开发者账号、付费、资料填写、审核，审核时间不可完全控制。
-
-如果后续仍要提交 Google Play，需要：
+## Google Play 上架步骤
 
 1. 注册并付费开通 Google Play Console。
 2. 创建应用，应用名填写“健康守护者”。
-3. 生成并上传正式 AAB 包。
-4. 填写商店资料、隐私政策网址、Data safety、Health apps declaration。
-5. 先走内部测试或封闭测试，再申请正式发布。
+3. 上传生产 AAB 包。
+4. 填写商店资料、应用分类、联系方式。
+5. 填写隐私政策公网 HTTPS 网址。
+6. 填写 Data safety。
+7. 填写 Health apps declaration。
+8. 上传截图、图标和功能图。
+9. 先提交内部测试或封闭测试。
+10. 审核通过后申请正式发布。
 
-注意：Google Play 要求隐私政策是公网 HTTPS 网址。比赛版内置隐私政策已经可展示；正式上架时需要把隐私政策发布到公开网页。
+## 资料文件
 
-## 当前版本定位
+- `release/store-listing.md`
+- `release/privacy-policy.md`
+- `release/user-agreement.md`
+- `release/google-play-data-safety.md`
+- `release/health-app-declaration.md`
+- `release/test-checklist.md`
+- `release/backend-deployment.md`
 
-当前版本功能完整，适合比赛评审下载、安装、操作、答辩展示。
+## 合规说明
 
-它不是正式医疗诊断软件，不建议存放真实敏感医疗档案，也不建议直接承诺面向公众长期运营。
+健康守护者用于康复训练记录、康复过程管理、设备状态查看和数据报告。本应用不提供医疗诊断，不替代医生、康复师或其他专业医疗人员意见，也不用于紧急医疗服务。

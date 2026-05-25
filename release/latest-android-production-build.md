@@ -1,21 +1,27 @@
-# ????????????
+# Android 生产构建
 
-?????FINISHED
+状态：已完成
 
-?? ID?76ef7827-bba8-4b0e-a38b-e152f93c291a
+构建 ID：`92e84ac2-c9fe-428e-beb8-af6e23023a09`
 
-???1.0.0
+版本：`1.0.0`
 
-?????4
+构建号：`9`
 
-AAB ?????
+构建页面：
 
-https://expo.dev/artifacts/eas/fFPUmFbhAG94DGQ33Ye4WJ.aab
+https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/92e84ac2-c9fe-428e-beb8-af6e23023a09
 
-Expo ?????
+云端下载：
 
-https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/76ef7827-bba8-4b0e-a38b-e152f93c291a
+https://expo.dev/artifacts/eas/j9auc81Bb9T6nUQV7RQU1H.aab
 
-?????release/jiankang-shouhuzhe-production.aab
+用途：Google Play 上传使用的 Android App Bundle（`.aab`）。
 
-????? Google Play ??????? Android App Bundle?.aab??
+本地文件：
+
+`release/jiankang-shouhuzhe-production.aab`
+
+SHA256：
+
+`AC2F85E6B219ABD2742D55A06D4DCB207D022D6B71266C578444A92651194131`
