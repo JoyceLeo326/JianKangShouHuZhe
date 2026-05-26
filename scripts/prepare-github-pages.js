@@ -5,6 +5,7 @@ const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'release', 'github-pages-deploy');
 const indexPath = path.join(outDir, 'index.html');
 const nojekyllPath = path.join(outDir, '.nojekyll');
+const bundleDir = path.join(outDir, '_expo', 'static', 'js', 'web');
 
 if (!fs.existsSync(indexPath)) {
   throw new Error(`Missing ${indexPath}. Run npm run build:pages after exporting the web app.`);
@@ -55,5 +56,16 @@ if (!html.includes('#root > *')) {
 
 fs.writeFileSync(indexPath, html, 'utf8');
 fs.writeFileSync(nojekyllPath, '', 'utf8');
+
+if (fs.existsSync(bundleDir)) {
+  for (const file of fs.readdirSync(bundleDir)) {
+    if (!file.endsWith('.js')) continue;
+    const bundlePath = path.join(bundleDir, file);
+    const bundle = fs.readFileSync(bundlePath, 'utf8')
+      .replace(/(["'])\/assets\//g, '$1./assets/')
+      .replace(/(["'])\/_expo\//g, '$1./_expo/');
+    fs.writeFileSync(bundlePath, bundle, 'utf8');
+  }
+}
 
 console.log(`Prepared GitHub Pages output: ${path.relative(root, outDir)}`);
