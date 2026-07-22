@@ -8,8 +8,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "demo": "node scripts/demo.js",
-    "test": "node scripts/smoke-test.js",
-    "check:syntax": "node --check App.js && node --check server/index.js && node --check server/db.js && node --check server/pages.js && node --check scripts/smoke-test.js && node --check scripts/h5-interaction-layout-check.js && node --check scripts/start-wechat-demo.js && node --check scripts/prepare-github-pages.js",
+    "test": "node scripts/smoke-test.js && node scripts/product-depth-test.js",
+    "test:product-depth": "node scripts/product-depth-test.js",
+    "check:syntax": "node --check App.js && node --check src/report-export.js && node --check server/index.js && node --check server/db.js && node --check server/pages.js && node --check scripts/smoke-test.js && node --check scripts/product-depth-test.js && node --check scripts/h5-interaction-layout-check.js && node --check scripts/start-wechat-demo.js && node --check scripts/prepare-github-pages.js",
     "server": "node server/index.js",
     "dev:api": "node server/index.js",
     "preview:h5": "node scripts/serve-h5-preview.js",
@@ -20,6 +21,7 @@
     "check:h5": "node scripts/h5-interaction-layout-check.js",
     "build:android:preview": "eas build -p android --profile preview",
     "build:android:production": "eas build -p android --profile production",
+    "build:android:china": "eas build -p android --profile china-production-apk",
     "submit:android": "eas submit -p android --profile production"
   },
   "dependencies": {

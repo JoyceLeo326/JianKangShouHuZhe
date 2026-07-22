@@ -16,12 +16,12 @@ const initialAppData = {
   { id: 'd3', name: '肌张力采集器 C07', type: '肌电设备', status: 'standby', battery: 21, signal: 18, patient: '未绑定', lastSync: '昨天 19:20' }
   ],
   assessments: [
-    { id: 'a1', patient: '李明', date: '2026-04-26', grip: 22, rom: 66, pain: 2, adl: 72, score: 78, note: '握力提升，建议继续低阻力主动训练。' },
-    { id: 'a2', patient: '王阿姨', date: '2026-04-25', grip: 15, rom: 48, pain: 4, adl: 58, score: 64, note: '腕部活动度仍受限，需增加热身与被动活动。' }
+    { id: 'a1', patient: '李明', date: '2026-04-26', grip: 22, rom: 66, pain: 2, adl: 72, score: 78, note: '虚构演示记录：握力数值较前次记录增加，训练安排待专业人员复核。' },
+    { id: 'a2', patient: '王阿姨', date: '2026-04-25', grip: 15, rom: 48, pain: 4, adl: 58, score: 64, note: '虚构演示记录：已记录活动度与疼痛数值，未形成医疗判断。' }
   ],
   prescriptions: [
-    { id: 'rx1', patient: '李明', title: '手指分离控制训练', intensity: '中等', frequency: '每日 2 次', duration: '15 分钟', status: '执行中', focus: '精细动作、抓握稳定性' },
-    { id: 'rx2', patient: '王阿姨', title: '腕关节活动度恢复', intensity: '轻柔', frequency: '每日 3 次', duration: '10 分钟', status: '待确认', focus: '屈伸活动度、疼痛控制' }
+    { id: 'rx1', patient: '李明', title: '手指分离记录草案', intensity: '中等', frequency: '每日 2 次', duration: '15 分钟', status: '待专业人员确认', focus: '精细动作、抓握稳定性' },
+    { id: 'rx2', patient: '王阿姨', title: '腕关节活动记录草案', intensity: '轻柔', frequency: '每日 3 次', duration: '10 分钟', status: '待专业人员确认', focus: '屈伸活动度、疼痛记录' }
   ],
   records: [
     { id: 'r1', patient: '李明', type: '抓握训练', date: '2026-04-26', duration: 18, completion: 92, score: 86 },
@@ -29,8 +29,8 @@ const initialAppData = {
     { id: 'r3', patient: '李明', type: '精细动作', date: '2026-04-24', duration: 15, completion: 88, score: 81 }
   ],
   reports: [
-    { id: 'rp1', patient: '李明', title: '第4周康复进展报告', date: '2026-04-26', status: '已生成', summary: '本周握力与完成率均有提升，建议维持当前强度并增加手指分离任务。' },
-    { id: 'rp2', patient: '王阿姨', title: '术后活动度评估报告', date: '2026-04-25', status: '待复核', summary: '疼痛评分下降，腕部活动度恢复偏慢，建议延长热敷和低角度主动训练。' }
+    { id: 'rp1', patient: '李明', title: '第4周训练记录摘要', date: '2026-04-26', status: '演示草案', summary: '虚构记录显示本周握力数值与完成率高于前次；不据此形成训练调整或医疗结论。' },
+    { id: 'rp2', patient: '王阿姨', title: '活动度记录摘要', date: '2026-04-25', status: '待专业人员复核', summary: '虚构记录包含疼痛与腕部活动度数值；下一步安排由医生或康复师判断。' }
   ],
   storage: [
     { id: 's1', title: '评估量表模板', type: '模板', owner: '系统', updated: '2026-04-21', size: '124 KB' },
@@ -39,9 +39,10 @@ const initialAppData = {
   ],
   tasks: [
     { id: 't1', title: '李明 15:00 复评', meta: '握力 + ROM', priority: '高', done: false },
-    { id: 't2', title: '王阿姨处方复核', meta: '术后第2周', priority: '中', done: false },
+    { id: 't2', title: '王阿姨建议草案复核', meta: '术后第2周', priority: '中', done: false },
     { id: 't3', title: '同步手套 A01 数据', meta: '设备中心', priority: '低', done: true }
-  ]
+  ],
+  engagement: { streak: 6, lastCheckIn: '', totalCheckIns: 23, planDate: '', planDone: [] }
 };
 
 function ensureDb() {

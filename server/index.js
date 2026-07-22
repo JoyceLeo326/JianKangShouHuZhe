@@ -142,6 +142,7 @@ app.put('/api/app-data', auth, (req, res) => {
     reports: Array.isArray(data.reports) ? data.reports : [],
     storage: Array.isArray(data.storage) ? data.storage : [],
     tasks: Array.isArray(data.tasks) ? data.tasks : [],
+    engagement: data.engagement && typeof data.engagement === 'object' ? data.engagement : {},
     updatedAt: new Date().toISOString()
   };
   writeDb(db);

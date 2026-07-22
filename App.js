@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert, Dimensions, KeyboardAvoidingView, Modal, Platform,
-  SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput,
+  Alert, Animated, Dimensions, Easing, KeyboardAvoidingView, Modal, Platform,
+  SafeAreaView, ScrollView, StyleSheet, Text, TextInput,
   TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -12,6 +12,7 @@ import Svg, {
   Defs, LinearGradient as SvgLG, RadialGradient as SvgRG, Stop,
   Circle, Path, Rect, G as SvgG, Line,
 } from 'react-native-svg';
+const { buildReportMarkdown, reportFileName } = require('./src/report-export');
 
 const { width } = Dimensions.get('window');
 const APP_WIDTH = Platform.OS === 'web' ? Math.min(width, 430) : width;
@@ -173,6 +174,108 @@ async function apiRequest(path, { method = 'GET', body, token } = {}) {
   return data;
 }
 
+/* ============================================================
+ * AI 康复助手 —— BYOK（用户自带 Key）OpenAI 兼容客户端
+ * 设计原则：API Key 只保存在本机，绝不上传我们的服务器；
+ * 安卓原生直连国内厂商（无 CORS 限制），可选填代理地址供 Web 端绕过 CORS。
+ * ============================================================ */
+const AI_CONFIG_KEY = 'jkshz_ai_config';
+const AI_CHAT_KEY = 'jkshz_ai_chat';
+const AI_PROVIDERS = [
+  { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', hint: '深度求索 · 国内直连 · 性价比高', keyUrl: 'platform.deepseek.com' },
+  { id: 'zhipu', name: '智谱 GLM', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash', hint: 'GLM-4-Flash 提供免费额度', keyUrl: 'bigmodel.cn' },
+  { id: 'qwen', name: '通义千问', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', hint: '阿里云百炼 · OpenAI 兼容模式', keyUrl: 'bailian.console.aliyun.com' },
+  { id: 'moonshot', name: 'Kimi', baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k', hint: '月之暗面 Moonshot', keyUrl: 'platform.moonshot.cn' },
+  { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', hint: '需自行解决网络访问', keyUrl: 'platform.openai.com' },
+  { id: 'custom', name: '自定义', baseUrl: '', model: '', hint: '任意 OpenAI 兼容接口', keyUrl: '' },
+];
+const DEFAULT_AI_CONFIG = { provider: 'deepseek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', apiKey: '', proxyUrl: '', temperature: 0.6 };
+const AI_SYSTEM_PROMPT = '你是“健康守护者”个人作品演示中的 AI 康复助手。你的任务是复述和整理用户提供的记录，输出：① 记录摘要 ② 需要医生或康复师复核的训练建议草案 ③ 就医与安全提醒。不要诊断，不要声称处方或治疗效果，不要编造未提供的数值。每次结尾必须说明：内容仅供记录整理，不提供诊断，不能替代医生或康复师，也不用于急救；若出现紧急情况，应立即联系当地急救服务。';
+
+async function loadAiConfig() {
+  try { const raw = await Storage.getItem(AI_CONFIG_KEY); if (raw) return { ...DEFAULT_AI_CONFIG, ...JSON.parse(raw) }; } catch (e) {}
+  return { ...DEFAULT_AI_CONFIG };
+}
+async function persistAiConfig(cfg) { try { await Storage.setItem(AI_CONFIG_KEY, JSON.stringify(cfg)); } catch (e) {} }
+function aiConfigured(cfg) { return Boolean(cfg && cfg.apiKey && cfg.baseUrl && cfg.model); }
+
+async function aiChat(cfg, messages, { signal } = {}) {
+  if (!aiConfigured(cfg)) throw new Error('尚未连接模型，请先在右上角配置你的 AI 服务。');
+  const base = String(cfg.baseUrl || '').replace(/\/$/, '');
+  let url; let headers; let payload;
+  if (cfg.proxyUrl && cfg.proxyUrl.trim()) {
+    url = cfg.proxyUrl.trim().replace(/\/$/, '') + '/api/ai/chat';
+    headers = { 'Content-Type': 'application/json' };
+    payload = { baseUrl: base, apiKey: cfg.apiKey, model: cfg.model, messages, temperature: cfg.temperature };
+  } else {
+    url = base + '/chat/completions';
+    headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` };
+    payload = { model: cfg.model, messages, temperature: typeof cfg.temperature === 'number' ? cfg.temperature : 0.6, stream: false };
+  }
+  let res;
+  try { res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload), signal }); }
+  catch (e) { throw new Error('网络请求失败，请检查接口地址与网络（Web 端部分厂商需配置代理）。'); }
+  const text = await res.text();
+  let data; try { data = text ? JSON.parse(text) : {}; } catch (e) { throw new Error('返回内容无法解析：' + text.slice(0, 120)); }
+  if (!res.ok) {
+    const raw = (data.error && (data.error.message || data.error)) || data.message || `请求失败（${res.status}）`;
+    throw new Error(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  }
+  const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!content) throw new Error('模型未返回内容，请检查模型名称或账户额度。');
+  return String(content).trim();
+}
+
+function patientStats(name, assessments, records, prescriptions) {
+  const a = (assessments || []).filter((x) => x.patient === name);
+  const r = (records || []).filter((x) => x.patient === name);
+  const rx = (prescriptions || []).filter((x) => x.patient === name);
+  const latest = a[0] || null;
+  const avgScore = r.length ? Math.round(r.reduce((s, x) => s + (x.score || 0), 0) / r.length) : (latest ? latest.score : 0);
+  const avgCompletion = r.length ? Math.round(r.reduce((s, x) => s + (x.completion || 0), 0) / r.length) : 0;
+  const totalMin = r.reduce((s, x) => s + (x.duration || 0), 0);
+  return { a, r, rx, latest, avgScore, avgCompletion, totalMin };
+}
+
+function buildPatientContext(patient, assessments, records, prescriptions) {
+  const s = patientStats(patient.name, assessments, records, prescriptions);
+  const lines = [];
+  lines.push(`患者：${patient.name}，${patient.age}岁，诊断「${patient.diagnosis}」，患侧${patient.side}，当前${patient.stage}，风险等级${patient.risk}。`);
+  if (s.latest) lines.push(`最新评估（${s.latest.date}）：握力${s.latest.grip}kg，关节活动度${s.latest.rom}%，疼痛${s.latest.pain}/10，日常生活能力${s.latest.adl}%，综合评分${s.latest.score}。`);
+  else lines.push('暂无评估记录。');
+  if (s.r.length) {
+    lines.push(`训练记录共${s.r.length}条，平均完成率${s.avgCompletion}%，平均得分${s.avgScore}，累计训练${s.totalMin}分钟。`);
+    lines.push('近期训练：' + s.r.slice(0, 5).map((x) => `${x.date} ${x.type} 完成${x.completion}% 得分${x.score}`).join('；') + '。');
+  } else { lines.push('暂无训练记录。'); }
+  if (s.rx.length) lines.push('现有训练建议草案：' + s.rx.map((x) => `${x.title}（强度${x.intensity}/${x.frequency}/${x.duration}/${x.status}）`).join('；') + '。');
+  return lines.join('\n');
+}
+
+// 离线兜底：按确定性规则整理虚构演示记录，不冒充模型或医疗结论。
+function localRecordSummary(patient, assessments, records, prescriptions) {
+  const s = patientStats(patient.name, assessments, records, prescriptions);
+  const score = s.latest ? s.latest.score : s.avgScore || 60;
+  const level = score >= 75 ? '良好' : score >= 60 ? '中等' : '偏弱';
+  const pain = s.latest ? s.latest.pain : 3;
+  const rom = s.latest ? s.latest.rom : 55;
+  const grip = s.latest ? s.latest.grip : 18;
+  const out = [];
+  out.push(`## ${patient.name} · 记录解读`);
+  out.push(`记录中的综合评分为 **${score}** 分（演示分档：**${level}**）。档案字段记录为「${patient.diagnosis}」，患侧${patient.side}，当前${patient.stage}。这些字段仅复述录入内容。`);
+  out.push(`- 握力记录：**${grip}kg**`);
+  out.push(`- 关节活动度记录：**${rom}%**`);
+  out.push(`- 疼痛记录：**${pain}/10**`);
+  out.push('## 训练建议草案（待专业人员复核）');
+  out.push('1. 核对上述记录是否完整，并由医生或康复师判断训练是否适合继续。');
+  out.push(`2. 可供复核的关注项：${rom < 70 ? '活动度记录、' : ''}${grip < 22 ? '握力记录、' : ''}精细动作完成情况。`);
+  out.push('3. 具体强度、频次、时长和负荷调整由医生或康复师结合面诊决定。');
+  out.push('## 安全提醒');
+  out.push(`- ${pain >= 5 ? '记录中的疼痛数值较高；请停止自行调整，并联系专业人员。' : '继续记录训练后是否出现肿胀、疼痛加重或其他异常。'}`);
+  out.push('- 如出现紧急或快速恶化的症状，请立即联系当地急救服务。');
+  out.push('> 本内容由本地演示规则生成，仅供记录整理，不提供诊断，不能替代医生或康复师，也不用于急救。');
+  return out.join('\n');
+}
+
 const initialPatients = [
   { id: 'p1', name: '李明', age: '62', diagnosis: '脑卒中恢复期', side: '右手', stage: '第4周', risk: '低风险', next: '今天 15:00', phone: '13800000001' },
   { id: 'p2', name: '王阿姨', age: '68', diagnosis: '腕关节术后', side: '左手', stage: '第2周', risk: '中风险', next: '明天 10:30', phone: '13800000002' },
@@ -183,12 +286,12 @@ const initialDevices = [
   { id: 'd3', name: '肌张力采集器 C07', type: '肌电设备', status: 'standby', battery: 21, signal: 18, patient: '未绑定', lastSync: '昨天 19:20' },
 ];
 const initialAssessments = [
-  { id: 'a1', patient: '李明', date: '2026-04-26', grip: 22, rom: 66, pain: 2, adl: 72, score: 78, note: '握力提升，建议继续低阻力主动训练。' },
-  { id: 'a2', patient: '王阿姨', date: '2026-04-25', grip: 15, rom: 48, pain: 4, adl: 58, score: 64, note: '腕部活动度仍受限，需增加热身与被动活动。' },
+  { id: 'a1', patient: '李明', date: '2026-04-26', grip: 22, rom: 66, pain: 2, adl: 72, score: 78, note: '虚构演示记录：握力数值较前次记录增加，训练安排待专业人员复核。' },
+  { id: 'a2', patient: '王阿姨', date: '2026-04-25', grip: 15, rom: 48, pain: 4, adl: 58, score: 64, note: '虚构演示记录：已记录活动度与疼痛数值，未形成医疗判断。' },
 ];
 const initialPrescriptions = [
-  { id: 'rx1', patient: '李明', title: '手指分离控制训练', intensity: '中等', frequency: '每日 2 次', duration: '15 分钟', status: '执行中', focus: '精细动作、抓握稳定性' },
-  { id: 'rx2', patient: '王阿姨', title: '腕关节活动度恢复', intensity: '轻柔', frequency: '每日 3 次', duration: '10 分钟', status: '待确认', focus: '屈伸活动度、疼痛控制' },
+  { id: 'rx1', patient: '李明', title: '手指分离记录草案', intensity: '中等', frequency: '每日 2 次', duration: '15 分钟', status: '待专业人员确认', focus: '精细动作、抓握稳定性' },
+  { id: 'rx2', patient: '王阿姨', title: '腕关节活动记录草案', intensity: '轻柔', frequency: '每日 3 次', duration: '10 分钟', status: '待专业人员确认', focus: '屈伸活动度、疼痛记录' },
 ];
 const initialRecords = [
   { id: 'r1', patient: '李明', type: '抓握训练', date: '2026-04-26', duration: 18, completion: 92, score: 86 },
@@ -196,8 +299,8 @@ const initialRecords = [
   { id: 'r3', patient: '李明', type: '精细动作', date: '2026-04-24', duration: 15, completion: 88, score: 81 },
 ];
 const initialReports = [
-  { id: 'rp1', patient: '李明', title: '第4周康复进展报告', date: '2026-04-26', status: '已生成', summary: '本周握力与完成率均有提升，建议维持当前强度并增加手指分离任务。' },
-  { id: 'rp2', patient: '王阿姨', title: '术后活动度评估报告', date: '2026-04-25', status: '待复核', summary: '疼痛评分下降，腕部活动度恢复偏慢，建议延长热敷和低角度主动训练。' },
+  { id: 'rp1', patient: '李明', title: '第4周训练记录摘要', date: '2026-04-26', status: '演示草案', summary: '虚构记录显示本周握力数值与完成率高于前次；不据此形成训练调整或医疗结论。' },
+  { id: 'rp2', patient: '王阿姨', title: '活动度记录摘要', date: '2026-04-25', status: '待专业人员复核', summary: '虚构记录包含疼痛与腕部活动度数值；下一步安排由医生或康复师判断。' },
 ];
 const initialStorage = [
   { id: 's1', title: '评估量表模板', type: '模板', owner: '系统', updated: '2026-04-21', size: '124 KB' },
@@ -206,13 +309,28 @@ const initialStorage = [
 ];
 const initialTasks = [
   { id: 't1', title: '李明 15:00 复评', meta: '握力 + ROM', priority: '高', done: false },
-  { id: 't2', title: '王阿姨处方复核', meta: '术后第2周', priority: '中', done: false },
+  { id: 't2', title: '王阿姨建议草案复核', meta: '术后第2周', priority: '中', done: false },
   { id: 't3', title: '同步手套 A01 数据', meta: '设备中心', priority: '低', done: true },
+];
+const yesterday = formatLocalDate(new Date(now.getTime() - 86400000));
+const initialEngagement = { streak: 6, lastCheckIn: yesterday, totalCheckIns: 23, planDate: today, planDone: [] };
+// 今日康复计划模板（每日重置完成状态）
+const DAILY_PLAN = [
+  { id: 'pl_warm', title: '热身与关节活动', meta: '5 分钟 · 被动牵伸', icon: 'leaf-outline', grad: G.primary },
+  { id: 'pl_grip', title: '抓握力量训练', meta: '3 组 · 互动训练', icon: 'hand-left-outline', grad: G.sky },
+  { id: 'pl_fine', title: '手指精细动作', meta: '捏取 / 分离控制', icon: 'finger-print-outline', grad: G.lavender },
+  { id: 'pl_log', title: '记录今日状态', meta: '疼痛 / 完成度', icon: 'create-outline', grad: G.amber },
+];
+// 康复小知识卡片（纯本地内容，零成本）
+const KNOWLEDGE_CARDS = [
+  { id: 'k1', tag: '科普', title: '为什么手部康复要趁早？', body: '神经可塑性在损伤后早期最活跃，尽早开始规范训练有助于重建运动通路。', icon: 'bulb-outline', grad: G.amber },
+  { id: 'k2', tag: '技巧', title: '镜像疗法小知识', body: '用健侧手在镜中“替代”患侧，可激活大脑运动区，辅助偏瘫手功能恢复。', icon: 'sparkles-outline', grad: G.lavender },
+  { id: 'k3', tag: '提醒', title: '训练后手肿怎么办？', body: '适度抬高患肢、轻柔向心按摩，若持续肿胀或疼痛加重应及时复诊。', icon: 'medkit-outline', grad: G.coral },
 ];
 const tabs = [
   { key: 'workbench', label: '工作台', icon: 'grid-outline', activeIcon: 'grid' },
-  { key: 'device', label: '设备', icon: 'hardware-chip-outline', activeIcon: 'hardware-chip' },
   { key: 'training', label: '训练', icon: 'pulse-outline', activeIcon: 'pulse' },
+  { key: 'ai', label: 'AI博士', icon: 'sparkles-outline', activeIcon: 'sparkles', center: true },
   { key: 'data', label: '数据', icon: 'bar-chart-outline', activeIcon: 'bar-chart' },
   { key: 'profile', label: '我的', icon: 'person-outline', activeIcon: 'person' },
 ];
@@ -242,7 +360,7 @@ function defaultAppData() {
   return {
     patients: initialPatients, devices: initialDevices, assessments: initialAssessments,
     prescriptions: initialPrescriptions, records: initialRecords, reports: initialReports,
-    storage: initialStorage, tasks: initialTasks,
+    storage: initialStorage, tasks: initialTasks, engagement: { ...initialEngagement },
   };
 }
 
@@ -377,6 +495,165 @@ function GradientBar({ height: h, width: w = 30, colors = G.primary }) {
       </Defs>
       <Rect x="0" y="0" width={w} height={h} rx={w / 3} fill={`url(#${id})`} />
     </Svg>
+  );
+}
+
+/* ============================ 动效与富文本 ============================ */
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
+
+// 入场淡入 + 轻微上滑（按顺序错峰，营造现代感）
+function Appear({ children, delay = 0, offset = 14, style }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.timing(v, { toValue: 1, duration: 460, delay, easing: Easing.out(Easing.cubic), useNativeDriver: USE_NATIVE_DRIVER });
+    anim.start();
+    return () => anim.stop();
+  }, [v, delay]);
+  return (
+    <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [offset, 0] }) }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+// 数字滚动（count-up）—— 用 rAF 自驱动 + 定时兜底，保证任何环境下最终都落在正确数值
+function AnimatedNumber({ value, style, duration = 1100, format }) {
+  const target = Number(value) || 0;
+  const [shown, setShown] = useState(target);
+  const rafRef = useRef(null);
+  useEffect(() => {
+    let start = null;
+    setShown(0);
+    const tick = (ts) => {
+      if (start == null) start = ts;
+      const p = Math.min(1, (ts - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setShown(target * eased);
+      if (p < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    const safety = setTimeout(() => setShown(target), duration + 150);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); clearTimeout(safety); };
+  }, [target, duration]);
+  const n = Math.round(shown);
+  return <Text style={style}>{format ? format(n) : n}</Text>;
+}
+
+// 按压缩放（让卡片/按钮“可点感”更强）
+function Pressable({ children, onPress, style, scaleTo = 0.97, activeOpacity = 0.92 }) {
+  const s = useRef(new Animated.Value(1)).current;
+  const to = (val) => Animated.spring(s, { toValue: val, useNativeDriver: USE_NATIVE_DRIVER, speed: 40, bounciness: 6 }).start();
+  return (
+    <TouchableOpacity activeOpacity={activeOpacity} onPress={onPress} onPressIn={() => to(scaleTo)} onPressOut={() => to(1)}>
+      <Animated.View style={[style, { transform: [{ scale: s }] }]}>{children}</Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+// 打字机式逐字显示（模拟流式输出）
+function useTypewriter(fullText, active, speed = 14) {
+  const [shown, setShown] = useState(active ? '' : fullText);
+  useEffect(() => {
+    if (!active) { setShown(fullText); return undefined; }
+    setShown('');
+    let i = 0;
+    const step = Math.max(1, Math.round(fullText.length / 220)); // 长文本加速
+    const timer = setInterval(() => {
+      i += step;
+      if (i >= fullText.length) { setShown(fullText); clearInterval(timer); }
+      else setShown(fullText.slice(0, i));
+    }, speed);
+    // 兜底：无论计时器是否被节流/页面切后台，到时强制显示全文
+    const safety = setTimeout(() => { setShown(fullText); clearInterval(timer); }, Math.max(1800, (fullText.length / step) * speed + 800));
+    return () => { clearInterval(timer); clearTimeout(safety); };
+  }, [fullText, active, speed]);
+  return shown;
+}
+
+// 三点“思考中”动画
+function TypingDots({ color = C.primary }) {
+  const dots = [useRef(new Animated.Value(0.3)).current, useRef(new Animated.Value(0.3)).current, useRef(new Animated.Value(0.3)).current];
+  useEffect(() => {
+    const loops = dots.map((d, i) => Animated.loop(Animated.sequence([
+      Animated.delay(i * 160),
+      Animated.timing(d, { toValue: 1, duration: 320, useNativeDriver: USE_NATIVE_DRIVER }),
+      Animated.timing(d, { toValue: 0.3, duration: 320, useNativeDriver: USE_NATIVE_DRIVER }),
+    ])));
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  }, []);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {dots.map((d, i) => <Animated.View key={i} style={{ width: 7, height: 7, borderRadius: 4, marginRight: 5, backgroundColor: color, opacity: d }} />)}
+    </View>
+  );
+}
+
+// 行内 **加粗** 解析
+function renderInline(text, baseStyle, keyPrefix) {
+  const parts = String(text).split('**');
+  return parts.map((p, i) => (i % 2 === 1
+    ? <Text key={`${keyPrefix}-b${i}`} style={[baseStyle, styles.mdBold]}>{p}</Text>
+    : <Text key={`${keyPrefix}-n${i}`} style={baseStyle}>{p}</Text>));
+}
+
+// 轻量 Markdown 渲染（标题/要点/有序/引用/段落 + 行内加粗）
+function MarkdownLite({ text }) {
+  const lines = String(text || '').split('\n');
+  return (
+    <View>
+      {lines.map((raw, i) => {
+        const line = raw.replace(/\s+$/, '');
+        if (!line.trim()) return <View key={i} style={{ height: 8 }} />;
+        if (/^#{1,3}\s+/.test(line)) {
+          const t = line.replace(/^#{1,3}\s+/, '');
+          return <Text key={i} style={styles.mdH}>{renderInline(t, styles.mdH, `h${i}`)}</Text>;
+        }
+        if (/^>\s?/.test(line)) {
+          return (
+            <View key={i} style={styles.mdQuote}>
+              <Text style={styles.mdQuoteText}>{renderInline(line.replace(/^>\s?/, ''), styles.mdQuoteText, `q${i}`)}</Text>
+            </View>
+          );
+        }
+        const ordered = line.match(/^(\d+)\.\s+(.*)$/);
+        if (ordered) {
+          return (
+            <View key={i} style={styles.mdRow}>
+              <Text style={styles.mdNum}>{ordered[1]}</Text>
+              <Text style={styles.mdP}>{renderInline(ordered[2], styles.mdP, `o${i}`)}</Text>
+            </View>
+          );
+        }
+        if (/^[-*•]\s+/.test(line)) {
+          return (
+            <View key={i} style={styles.mdRow}>
+              <View style={styles.mdDot} />
+              <Text style={styles.mdP}>{renderInline(line.replace(/^[-*•]\s+/, ''), styles.mdP, `l${i}`)}</Text>
+            </View>
+          );
+        }
+        return <Text key={i} style={styles.mdP}>{renderInline(line, styles.mdP, `p${i}`)}</Text>;
+      })}
+    </View>
+  );
+}
+
+// 成就徽章（解锁/未解锁两态）
+function AchievementBadge({ icon, label, unlocked, grad }) {
+  return (
+    <View style={styles.achItem}>
+      {unlocked ? (
+        <LinearGradient colors={grad || G.amber} start={GS} end={GE} style={styles.achMedal}>
+          <Ionicons name={icon} size={22} color={C.white} />
+        </LinearGradient>
+      ) : (
+        <View style={[styles.achMedal, styles.achMedalLock]}>
+          <Ionicons name="lock-closed" size={16} color={C.faint} />
+        </View>
+      )}
+      <Text style={[styles.achLabel, !unlocked && { color: C.faint }]} numberOfLines={1}>{label}</Text>
+    </View>
   );
 }
 
@@ -651,7 +928,11 @@ function LoginScreen({ onLogin, onWorkspaceLogin }) {
           </View>
           <NumberedEyebrow num="01" label="健康守护者" />
           <Text style={styles.loginTitle}>欢迎回来</Text>
-          <Text style={styles.loginSubtitle}>智能手部康复 · 数据驱动的训练管理</Text>
+          <Text style={styles.loginSubtitle}>训练记录与趋势管理作品演示</Text>
+          <View style={styles.loginDisclosure}>
+            <Text style={styles.loginDisclosureTitle}>个人作品演示 · 非医疗服务</Text>
+            <Text style={styles.loginDisclosureText}>以下患者、训练与设备数据均为虚构演示数据；不提供诊断，不能替代医生或康复师，也不用于急救。</Text>
+          </View>
         </View>
 
         <Card style={styles.loginCard}>
@@ -689,7 +970,7 @@ function LoginScreen({ onLogin, onWorkspaceLogin }) {
 }
 
 /* ============================ 工作台 ============================ */
-function WorkbenchScreen({ user, patients, devices, assessments, records, reports, tasks, setTasks, openFlow, goTab }) {
+function WorkbenchScreen({ user, patients, devices, assessments, records, reports, tasks, setTasks, engagement, setEngagement, aiConfig, openFlow, goTab }) {
   const onlineDevices = devices.filter((d) => d.status === 'online').length;
   const avgCompletion = records.length ? Math.round(records.reduce((sum, item) => sum + item.completion, 0) / records.length) : 0;
   const latestScore = assessments[0] ? assessments[0].score : 0;
@@ -698,11 +979,43 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
   const recentScores = records.slice(0, 7).map((r) => r.score).reverse();
   const quickActions = [
     { title: '新建评估', caption: '握力 · ROM · 疼痛', icon: 'clipboard-outline', gradient: G.primary, action: () => openFlow('assessment') },
-    { title: '生成处方', caption: '智能训练建议', icon: 'medkit-outline', gradient: G.coral, action: () => openFlow('prescription') },
+    { title: '建议草案', caption: '待专业人员复核', icon: 'medkit-outline', gradient: G.coral, action: () => openFlow('prescription') },
     { title: '开始训练', caption: '互动抓握模拟', icon: 'play-outline', gradient: G.amber, action: () => goTab('training') },
     { title: '数据报告', caption: '趋势与归档', icon: 'document-text-outline', gradient: G.lavender, action: () => goTab('data') },
+    { title: '设备中心', caption: '手套 · 传感器', icon: 'hardware-chip-outline', gradient: G.sky, action: () => goTab('device') },
+    { title: 'AI 助手', caption: '记录解读演示', icon: 'sparkles-outline', gradient: G.primaryDeep, action: () => goTab('ai') },
   ];
   const toggleTask = (id) => setTasks((prev) => prev.map((item) => item.id === id ? { ...item, done: !item.done } : item));
+
+  // 康复打卡
+  const eng = engagement || initialEngagement;
+  const checkedToday = eng.lastCheckIn === today;
+  const checkIn = () => {
+    if (checkedToday) { Alert.alert('今日已打卡', `已连续坚持 ${eng.streak} 天，继续保持！`); return; }
+    setEngagement((p) => {
+      const base = p || initialEngagement;
+      const cont = base.lastCheckIn === yesterday;
+      return { ...base, streak: cont ? (base.streak || 0) + 1 : 1, lastCheckIn: today, totalCheckIns: (base.totalCheckIns || 0) + 1 };
+    });
+  };
+  // 今日康复计划
+  const planDone = eng.planDate === today ? (eng.planDone || []) : [];
+  const togglePlan = (id) => setEngagement((p) => {
+    const base = p || initialEngagement;
+    const done = base.planDate === today ? (base.planDone || []) : [];
+    const next = done.includes(id) ? done.filter((x) => x !== id) : [...done, id];
+    return { ...base, planDate: today, planDone: next };
+  });
+  const planPct = Math.round(planDone.length / DAILY_PLAN.length * 100);
+  // 成就徽章
+  const achievements = [
+    { id: 'streak', icon: 'flame', label: '坚持打卡', unlocked: (eng.streak || 0) >= 3, grad: G.coral },
+    { id: 'train', icon: 'barbell', label: '训练达人', unlocked: records.length >= 5, grad: G.amber },
+    { id: 'score', icon: 'ribbon', label: '高分选手', unlocked: records.some((r) => r.score >= 90), grad: G.primary },
+    { id: 'assess', icon: 'clipboard', label: '评估先锋', unlocked: assessments.length >= 2, grad: G.sky },
+    { id: 'ai', icon: 'sparkles', label: 'AI 体验', unlocked: aiConfigured(aiConfig), grad: G.lavender },
+  ];
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
@@ -731,7 +1044,7 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
             </View>
             <View style={styles.wbHeroRight}>
               <View style={styles.wbBigNumWrap}>
-                <Text style={styles.wbBigNum}>{avgCompletion}</Text>
+                <AnimatedNumber value={avgCompletion} style={styles.wbBigNum} />
                 <Text style={styles.wbBigNumUnit}>%</Text>
               </View>
               <Text style={styles.wbBigNumLabel}>今日完成率</Text>
@@ -770,11 +1083,87 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
         <WaveDivider color={C.bg} height={30} />
       </View>
 
-      <SectionHeader num="02" eyebrow="PATIENTS" title="重点患者" subtitle="今日需要关注的康复进度" action="全部" onAction={() => goTab('training')} />
+      {/* AI 康复助手入口 */}
+      <Appear delay={60}>
+        <TouchableOpacity activeOpacity={0.9} onPress={() => goTab('ai')} style={[styles.aiBanner, SHADOW.hero]}>
+          <LinearGradient colors={G.primaryDeep} start={GS} end={GE} style={StyleSheet.absoluteFill} />
+          <Svg width="100%" height="100%" viewBox="0 0 360 110" style={StyleSheet.absoluteFill} preserveAspectRatio="xMidYMid slice">
+            <Defs>
+              <SvgRG id="aiBannerBlob" cx="0.85" cy="0.2" r="0.6">
+                <Stop offset="0" stopColor="#1FD09B" stopOpacity="0.45" />
+                <Stop offset="1" stopColor="#1FD09B" stopOpacity="0" />
+              </SvgRG>
+            </Defs>
+            <Rect width="360" height="110" fill="url(#aiBannerBlob)" />
+            <Circle cx="320" cy="22" r="48" stroke="#FFFFFF" strokeOpacity="0.12" strokeWidth="1" fill="none" />
+          </Svg>
+          <View style={styles.aiBannerIcon}><Ionicons name="sparkles" size={24} color={C.white} /></View>
+          <View style={styles.flex}>
+            <View style={styles.aiBannerTagRow}>
+              <Text style={styles.aiBannerTag}>NEW</Text>
+              <Text style={styles.aiBannerEyebrow}>AI 康复助手</Text>
+            </View>
+            <Text style={styles.aiBannerTitle}>整理记录，形成待复核建议草案</Text>
+            <Text style={styles.aiBannerSub}>{aiConfigured(aiConfig) ? '已连接你的模型 · 不提供诊断' : '本地规则演示 · 不提供诊断'}</Text>
+          </View>
+          <Ionicons name="arrow-forward-circle" size={26} color="rgba(255,255,255,0.92)" />
+        </TouchableOpacity>
+      </Appear>
+
+      {/* 康复打卡 streak */}
+      <Appear delay={110}>
+        <Card style={styles.streakCard}>
+          <LinearGradient colors={checkedToday ? G.coral : ['#F0F4F1', '#F0F4F1']} start={GS} end={GE} style={styles.streakFlame}>
+            <Ionicons name="flame" size={24} color={checkedToday ? C.white : C.faint} />
+          </LinearGradient>
+          <View style={[styles.flex, { marginLeft: 14 }]}>
+            <View style={styles.streakNumRow}>
+              <Text style={styles.streakNum}>{eng.streak || 0}</Text>
+              <Text style={styles.streakUnit}>天</Text>
+            </View>
+            <Text style={styles.streakLabel}>连续康复打卡 · 累计 {eng.totalCheckIns || 0} 次</Text>
+          </View>
+          <TouchableOpacity activeOpacity={0.85} onPress={checkIn} disabled={checkedToday} style={styles.streakBtnWrap}>
+            <LinearGradient colors={checkedToday ? ['#E0E6E1', '#E0E6E1'] : G.primaryDeep} start={GS} end={GE} style={styles.streakBtn}>
+              <Ionicons name={checkedToday ? 'checkmark-done' : 'flame-outline'} size={15} color={checkedToday ? C.muted : C.white} />
+              <Text style={[styles.streakBtnText, checkedToday && { color: C.muted }]}>{checkedToday ? '已打卡' : '打卡'}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Card>
+      </Appear>
+
+      {/* 今日康复计划 */}
+      <Appear delay={150}>
+        <SectionHeader num="02" eyebrow="TODAY PLAN" eyebrowColor={C.primaryDeep} title="今日康复计划" subtitle={`已完成 ${planDone.length} / ${DAILY_PLAN.length} 项`} />
+        <Card style={styles.planCard}>
+          <View style={styles.planHead}>
+            <View style={styles.planRingWrap}>
+              <ArcMini size={48} pct={planPct / 100} color={C.primary} strokeWidth={5} />
+              <Text style={styles.planRingText}>{planPct}%</Text>
+            </View>
+            <Text style={styles.planHeadText}>{planPct >= 100 ? '今日计划已全部完成，太棒了！' : '完成每日小目标，让康复稳步推进'}</Text>
+          </View>
+          {DAILY_PLAN.map((item, idx) => {
+            const done = planDone.includes(item.id);
+            return (
+              <TouchableOpacity key={item.id} activeOpacity={0.7} onPress={() => togglePlan(item.id)} style={[styles.planRow, idx !== DAILY_PLAN.length - 1 && styles.rowDivider]}>
+                <View style={[styles.planCheck, done && styles.planCheckDone]}>{done && <Ionicons name="checkmark" size={14} color={C.white} />}</View>
+                <IconTile icon={item.icon} dim={38} size={18} gradient={item.grad} />
+                <View style={[styles.flex, { marginLeft: 12 }]}>
+                  <Text style={[styles.planTitle, done && styles.taskTitleDone]}>{item.title}</Text>
+                  <Text style={styles.planMeta}>{item.meta}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </Card>
+      </Appear>
+
+      <SectionHeader num="03" eyebrow="PATIENTS" title="重点患者" subtitle="今日需要关注的康复进度" action="全部" onAction={() => goTab('training')} />
       {patients[0] && <FeaturedPatient patient={patients[0]} assessments={assessments} records={records} />}
       {patients.slice(1).map((patient) => <PatientRow key={patient.id} patient={patient} />)}
 
-      <SectionHeader num="03" eyebrow="TODAY" eyebrowColor={C.coralDeep} title="今日任务" subtitle={`已完成 ${doneCount} / ${tasks.length}`} />
+      <SectionHeader num="04" eyebrow="TODAY" eyebrowColor={C.coralDeep} title="今日任务" subtitle={`已完成 ${doneCount} / ${tasks.length}`} />
       <Card style={styles.listCard}>
         {tasks.map((task, index) => {
           const tone = task.priority === '高' ? 'coral' : task.priority === '中' ? 'amber' : 'primary';
@@ -791,10 +1180,10 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
         })}
       </Card>
 
-      <SectionHeader num="04" eyebrow="QUICK FLOW" eyebrowColor={C.amberDeep} title="快捷操作" subtitle="常用工作流一键开始" />
+      <SectionHeader num="05" eyebrow="QUICK FLOW" eyebrowColor={C.amberDeep} title="快捷操作" subtitle="常用工作流一键开始" />
       <View style={styles.quickGrid}>
         {quickActions.map((item, idx) => (
-          <TouchableOpacity key={item.title} activeOpacity={0.85} onPress={item.action} style={styles.quickCard}>
+          <Pressable key={item.title} onPress={item.action} style={styles.quickCard}>
             <View style={styles.quickCardHead}>
               <IconTile icon={item.icon} dim={44} gradient={item.gradient} />
               <Text style={styles.quickNum}>{String(idx + 1).padStart(2, '0')}</Text>
@@ -804,9 +1193,30 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
             <View style={styles.quickArrow}>
               <Ionicons name="arrow-forward" size={14} color={C.primaryDeep} />
             </View>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
+
+      <SectionHeader num="06" eyebrow="ACHIEVEMENTS" eyebrowColor={'#5E418A'} title="康复成就" subtitle={`已解锁 ${unlockedCount} / ${achievements.length} 枚徽章`} />
+      <Card style={styles.achCard}>
+        <View style={styles.achRow}>
+          {achievements.map((a) => <AchievementBadge key={a.id} icon={a.icon} label={a.label} unlocked={a.unlocked} grad={a.grad} />)}
+        </View>
+      </Card>
+
+      <SectionHeader num="07" eyebrow="KNOWLEDGE" eyebrowColor={C.amberDeep} title="康复小知识" subtitle="每日一条 · 科学康复" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.knowScroll}>
+        {KNOWLEDGE_CARDS.map((k) => (
+          <View key={k.id} style={styles.knowCard}>
+            <View style={styles.knowHead}>
+              <IconTile icon={k.icon} dim={36} size={17} gradient={k.grad} />
+              <View style={styles.knowTag}><Text style={styles.knowTagText}>{k.tag}</Text></View>
+            </View>
+            <Text style={styles.knowTitle}>{k.title}</Text>
+            <Text style={styles.knowBody}>{k.body}</Text>
+          </View>
+        ))}
+      </ScrollView>
     </ScrollView>
   );
 }
@@ -865,7 +1275,7 @@ function PatientRow({ patient }) {
 }
 
 /* ============================ 设备 ============================ */
-function DeviceScreen({ devices, setDevices }) {
+function DeviceScreen({ devices, setDevices, onBack }) {
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState('康复手套');
@@ -898,6 +1308,12 @@ function DeviceScreen({ devices, setDevices }) {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
+      {!!onBack && (
+        <TouchableOpacity onPress={onBack} activeOpacity={0.75} style={styles.backRow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="chevron-back" size={18} color={C.primaryDeep} />
+          <Text style={styles.backText}>返回工作台</Text>
+        </TouchableOpacity>
+      )}
       <PageHeader num="·" eyebrow="DEVICE CENTER" title="设备管理" subtitle={`在线 ${onlineCount} 台 · 共 ${devices.length} 台`}
         right={(
           <TouchableOpacity activeOpacity={0.85} onPress={() => setShowAdd(true)} style={styles.addButtonWrap}>
@@ -993,12 +1409,12 @@ function TrainingScreen({ patients, setPatients, assessments, setAssessments, pr
   const tabItems = [
     { key: 'patients', label: '患者', icon: 'people-outline' },
     { key: 'assessment', label: '评估', icon: 'clipboard-outline' },
-    { key: 'prescription', label: '处方', icon: 'medkit-outline' },
+    { key: 'prescription', label: '建议草案', icon: 'medkit-outline' },
     { key: 'game', label: '互动训练', icon: 'game-controller-outline' },
   ];
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
-      <PageHeader num="·" eyebrow="TRAINING" title="训练中心" subtitle="患者建档 · 评估 · 处方 · 互动训练" />
+      <PageHeader num="·" eyebrow="TRAINING" title="训练中心" subtitle="演示档案 · 评估记录 · 建议草案 · 互动训练" />
       <SegmentedControl items={tabItems} value={subTab} onChange={setSubTab} />
       {subTab === 'patients' && <PatientsPanel patients={patients} setPatients={setPatients} />}
       {subTab === 'assessment' && <AssessmentPanel patients={patients} assessments={assessments} setAssessments={setAssessments} />}
@@ -1026,7 +1442,7 @@ function PatientsPanel({ patients, setPatients }) {
   return (
     <>
       <SectionHeader num="·" eyebrow="PROFILES" title="患者档案" action="新增" onAction={() => setShowAdd(true)} />
-      {patients.length === 0 && <EmptyState icon="people-outline" title="暂无患者档案" caption="先建立患者档案，再录入评估和训练处方。" action="新增患者" onAction={() => setShowAdd(true)} />}
+      {patients.length === 0 && <EmptyState icon="people-outline" title="暂无演示档案" caption="先建立演示档案，再录入评估记录和训练建议草案。" action="新增档案" onAction={() => setShowAdd(true)} />}
       {patients.map((patient) => {
         const av = avatarOf(patient.name);
         return (
@@ -1075,7 +1491,7 @@ function AssessmentPanel({ patients, assessments, setAssessments }) {
     if (!form.patient.trim()) { Alert.alert('提示', '请选择或输入患者'); return; }
     const grip = Number(form.grip || 0); const rom = Number(form.rom || 0);
     const pain = Number(form.pain || 0); const adl = Number(form.adl || 0);
-    setAssessments((prev) => [{ id: uid('a'), patient: form.patient.trim(), date: today, grip, rom, pain, adl, score: scoreAssessment(grip, rom, pain, adl), note: form.note.trim() || '已完成基础评估，建议结合处方训练。' }, ...prev]);
+    setAssessments((prev) => [{ id: uid('a'), patient: form.patient.trim(), date: today, grip, rom, pain, adl, score: scoreAssessment(grip, rom, pain, adl), note: form.note.trim() || '已保存基础记录；训练安排需由医生或康复师复核。' }, ...prev]);
     setShowAdd(false);
   };
   return (
@@ -1139,7 +1555,7 @@ function PrescriptionPanel({ patients, prescriptions, setPrescriptions }) {
   const toggleStatus = (id) => setPrescriptions((prev) => prev.map((item) => item.id === id ? { ...item, status: item.status === '执行中' ? '已暂停' : '执行中' } : item));
   return (
     <>
-      <SectionHeader num="·" eyebrow="PRESCRIPTION" title="康复处方" action="智能生成" onAction={() => setShowAdd(true)} />
+      <SectionHeader num="·" eyebrow="DRAFT" title="训练建议草案" action="新建草案" onAction={() => setShowAdd(true)} />
       {prescriptions.map((item) => {
         const running = item.status === '执行中';
         return (
@@ -1154,11 +1570,11 @@ function PrescriptionPanel({ patients, prescriptions, setPrescriptions }) {
               <MiniStat label="频次" value={item.frequency} accent={C.sky} />
               <MiniStat label="时长" value={item.duration} accent={C.primary} />
             </View>
-            <PrimaryButton label={running ? '暂停处方' : '开始执行'} icon={running ? 'pause' : 'play'} tone={running ? 'ghost' : 'primary'} onPress={() => toggleStatus(item.id)} />
+            <PrimaryButton label={running ? '暂停记录' : '确认后开始'} icon={running ? 'pause' : 'play'} tone={running ? 'ghost' : 'primary'} onPress={() => toggleStatus(item.id)} />
           </Card>
         );
       })}
-      <ModalSheet visible={showAdd} title="智能生成处方" subtitle="生成结果仍需医生或康复师确认" onClose={() => setShowAdd(false)}>
+      <ModalSheet visible={showAdd} title="新建训练建议草案" subtitle="规则整理结果必须由医生或康复师确认" onClose={() => setShowAdd(false)}>
         <Text style={styles.inputLabel}>患者</Text>
         <View style={styles.chipRow}>{patients.map((patient) => <Chip key={patient.id} label={patient.name} active={form.patient === patient.name} onPress={() => setForm((p) => ({ ...p, patient: patient.name }))} />)}</View>
         <Text style={styles.inputLabel}>训练重点</Text>
@@ -1166,7 +1582,7 @@ function PrescriptionPanel({ patients, prescriptions, setPrescriptions }) {
         <Text style={styles.inputLabel}>训练强度</Text>
         <View style={styles.chipRow}>{['轻柔', '中等', '进阶'].map((item) => <Chip key={item} label={item} active={form.intensity === item} onPress={() => setForm((p) => ({ ...p, intensity: item }))} />)}</View>
         <InputField label="单次时长（分钟）" icon="time-outline" value={form.duration} onChangeText={(v) => setForm((p) => ({ ...p, duration: v }))} keyboardType="numeric" placeholder="15" />
-        <PrimaryButton label="生成处方" icon="sparkles" onPress={addPrescription} />
+        <PrimaryButton label="生成建议草案" icon="sparkles" onPress={addPrescription} />
       </ModalSheet>
     </>
   );
@@ -1286,7 +1702,7 @@ function DataScreen({ records, setRecords, reports, setReports, storage }) {
     setShowRecord(false);
   };
   const addReport = () => {
-    setReports((prev) => [{ id: uid('rp'), patient: reportForm.patient.trim() || '未命名', title: reportForm.title.trim() || '康复报告', date: today, status: '已生成', summary: reportForm.summary.trim() || '系统已根据训练记录生成阶段报告，建议结合医生复核后用于正式归档。' }, ...prev]);
+    setReports((prev) => [{ id: uid('rp'), patient: reportForm.patient.trim() || '未命名', title: reportForm.title.trim() || '训练记录摘要', date: today, status: '草案', summary: reportForm.summary.trim() || '这是新建的记录摘要草案，尚未包含专业医疗判断；请结合原始记录并交由医生或康复师复核。' }, ...prev]);
     setShowReport(false);
   };
   const removeRecord = (id) => {
@@ -1301,13 +1717,31 @@ function DataScreen({ records, setRecords, reports, setReports, storage }) {
       { text: '删除', style: 'destructive', onPress: () => setReports((prev) => prev.filter((item) => item.id !== id)) },
     ]);
   };
+  const exportReport = (report) => {
+    const markdown = buildReportMarkdown(report);
+    if (Platform.OS === 'web' && typeof document !== 'undefined' && typeof URL !== 'undefined') {
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = reportFileName(report);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      Alert.alert('导出成功', `已下载 ${reportFileName(report)}`);
+      return;
+    }
+    setViewReport({ ...report, exportedMarkdown: markdown });
+    Alert.alert('已生成导出内容', '非 Web 端已生成 Markdown 文本，并在报告详情中展示。你可以选择文字后交给系统分享或保存工具。');
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
       <PageHeader num="·" eyebrow="DATA HUB" title="数据中心" subtitle="训练记录 · 康复报告 · 趋势分析" />
       <SegmentedControl items={tabItems} value={subTab} onChange={setSubTab} />
       {subTab === 'records' && <RecordsPanel records={records} onAdd={() => setShowRecord(true)} onRemove={removeRecord} />}
-      {subTab === 'reports' && <ReportsPanel reports={reports} onAdd={() => setShowReport(true)} onView={setViewReport} onRemove={removeReport} />}
+      {subTab === 'reports' && <ReportsPanel reports={reports} onAdd={() => setShowReport(true)} onView={setViewReport} onExport={exportReport} onRemove={removeReport} />}
       {subTab === 'analytics' && <AnalyticsPanel records={records} reports={reports} />}
       {subTab === 'storage' && <StoragePanel storage={storage} />}
       <ModalSheet visible={showRecord} title="新增训练记录" subtitle="手动补录线下训练数据" onClose={() => setShowRecord(false)}>
@@ -1332,6 +1766,12 @@ function DataScreen({ records, setRecords, reports, setReports, storage }) {
               <InfoCell label="状态" value={viewReport.status} />
             </View>
             <View style={styles.noteWrap}><Ionicons name="reader-outline" size={14} color={C.primaryDeep} /><Text style={styles.noteText}>{viewReport.summary}</Text></View>
+            {!!viewReport.exportedMarkdown && (
+              <View style={styles.exportPreview}>
+                <Text style={styles.exportPreviewLabel}>MARKDOWN 导出内容</Text>
+                <Text selectable style={styles.exportPreviewText}>{viewReport.exportedMarkdown}</Text>
+              </View>
+            )}
             <PrimaryButton label="关闭" icon="checkmark" onPress={() => setViewReport(null)} />
           </View>
         )}
@@ -1370,7 +1810,7 @@ function RecordsPanel({ records, onAdd, onRemove }) {
   );
 }
 
-function ReportsPanel({ reports, onAdd, onView, onRemove }) {
+function ReportsPanel({ reports, onAdd, onView, onExport, onRemove }) {
   return (
     <>
       <SectionHeader num="·" eyebrow="REPORTS" title="康复报告" action="生成" onAction={onAdd} />
@@ -1386,7 +1826,7 @@ function ReportsPanel({ reports, onAdd, onView, onRemove }) {
           <View style={styles.btnRow}>
             <PrimaryButton label="查看" icon="eye-outline" tone="ghost" onPress={() => onView(item)} style={styles.flex} />
             <View style={styles.btnGap} />
-            <PrimaryButton label="导出" icon="download-outline" onPress={() => Alert.alert('导出准备中', '报告导出正在准备中，稍后可在数据中心查看。')} style={styles.flex} />
+            <PrimaryButton label="导出 Markdown" icon="download-outline" onPress={() => onExport(item)} style={styles.flex} />
           </View>
           <PrimaryButton label="删除报告" icon="trash-outline" tone="ghost" onPress={() => onRemove(item.id)} style={styles.topGap} />
         </Card>
@@ -1474,12 +1914,12 @@ function StoragePanel({ storage }) {
 }
 
 /* ============================ 我的 ============================ */
-function ProfileScreen({ user, setUser, onLogout, onDeleteAccount, onUpdateUser }) {
+function ProfileScreen({ user, setUser, onLogout, onDeleteAccount, onUpdateUser, aiConfig, setAiConfig }) {
   const [showEdit, setShowEdit] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
-  const [settings, setSettings] = useState({ notification: true, cloud: true, privacy: true });
+  const [showAiConfig, setShowAiConfig] = useState(false);
   const [draft, setDraft] = useState({ name: user.name, role: user.role });
   const saveProfile = async () => {
     const next = { ...user, name: draft.name.trim() || user.name, role: draft.role.trim() || user.role };
@@ -1538,17 +1978,22 @@ function ProfileScreen({ user, setUser, onLogout, onDeleteAccount, onUpdateUser 
       <Card style={styles.menuCard}>
         <ProfileMenu icon="person-circle-outline" tone="primary" title="个人资料" caption="姓名、身份与联系方式" onPress={() => setShowEdit(true)} />
         <ProfileMenu icon="lock-closed-outline" tone="sky" title="密码与安全" caption="管理登录方式与账号安全" onPress={() => Alert.alert('安全中心', '可在账号服务中管理登录凭证和安全策略。')} />
-        <ProfileMenu icon="cloud-done-outline" tone="lavender" title="数据保存" caption="患者档案、训练记录和报告自动保存" onPress={() => Alert.alert('数据保存', '系统会自动保存当前工作区的数据，并保持各模块信息一致。')} last />
+        <ProfileMenu icon="save-outline" tone="lavender" title="数据保存边界" caption="默认本机保存 · 可选服务端账号" onPress={() => Alert.alert('数据保存边界', 'Web 端通过 AsyncStorage 适配保存到 localStorage，原生端使用 AsyncStorage；持久存储不可用时仅在当前运行内存保留。只有选择并成功登录可选服务端账号时，工作区数据才会提交到该服务端。本作品不声明医疗合规认证或云端备份保证。')} last />
       </Card>
 
-      <SectionHeader num="·" eyebrow="SETTINGS" eyebrowColor={'#194E85'} title="系统设置" />
+      <SectionHeader num="·" eyebrow="AI ASSISTANT" eyebrowColor={C.primaryDeep} title="AI 助手" />
       <Card style={styles.menuCard}>
-        <SettingRow icon="notifications-outline" tone="amber" label="康复提醒通知" value={settings.notification} onValueChange={(v) => setSettings((p) => ({ ...p, notification: v }))} />
-        <SettingRow icon="sync-outline" tone="primary" label="训练数据自动同步" value={settings.cloud} onValueChange={(v) => setSettings((p) => ({ ...p, cloud: v }))} />
-        <SettingRow icon="eye-off-outline" tone="lavender" label="隐私保护模式" value={settings.privacy} onValueChange={(v) => setSettings((p) => ({ ...p, privacy: v }))} last />
+        <ProfileMenu icon="sparkles-outline" tone="primary" title="连接 AI 模型" caption={aiConfig && aiConfigured(aiConfig) ? `已连接 ${(AI_PROVIDERS.find((p) => p.id === aiConfig.provider) || {}).name || '自定义'} · ${aiConfig.model}` : '自带 API Key · 仅保存在本机'} onPress={() => setShowAiConfig(true)} last />
       </Card>
 
-      <SectionHeader num="·" eyebrow="LEGAL" eyebrowColor={'#5E418A'} title="合规与更多" />
+      <SectionHeader num="·" eyebrow="DATA & REMINDERS" eyebrowColor={'#194E85'} title="数据与提醒说明" />
+      <Card style={styles.menuCard}>
+        <ProfileMenu icon="phone-portrait-outline" tone="primary" title="本机工作区" caption="自动保存；失败时退回当前运行内存" onPress={() => Alert.alert('本机工作区', '浏览器使用 localStorage，原生端使用 AsyncStorage。若存储被拒绝，则仅在当前运行内存中保留，刷新或关闭后可能丢失。')} />
+        <ProfileMenu icon="server-outline" tone="sky" title="可选服务端账号" caption="仅主动登录成功后同步" onPress={() => Alert.alert('可选服务端账号', '只有用户选择并成功登录可选服务端账号时，数据才会提交到项目服务端；本作品不承诺持续在线或备份。')} />
+        <ProfileMenu icon="notifications-outline" tone="amber" title="应用内提醒" caption="待办和今日计划保存在当前工作区" onPress={() => Alert.alert('应用内提醒', '这里展示应用内待办和今日计划；当前演示未声明已接入系统推送通知。')} last />
+      </Card>
+
+      <SectionHeader num="·" eyebrow="BOUNDARIES" eyebrowColor={'#5E418A'} title="边界与更多" />
       <Card style={styles.menuCard}>
         <ProfileMenu icon="information-circle-outline" tone="sky" title="关于应用" caption="版本、版权与产品说明" onPress={() => setShowAbout(true)} />
         <ProfileMenu icon="shield-checkmark-outline" tone="primary" title="隐私政策" caption="查看信息收集、保存和删除说明" onPress={() => setShowPrivacy(true)} />
@@ -1568,22 +2013,25 @@ function ProfileScreen({ user, setUser, onLogout, onDeleteAccount, onUpdateUser 
           <HeroMedallion size={110} pct={0.78} />
           <Text style={styles.aboutName}>健康守护者</Text>
         </View>
-        <Text style={styles.detailParagraph}>健康守护者是一款面向手部康复训练场景的移动端应用，包含患者档案、设备管理、评估记录、训练处方、互动训练、数据报告、账号体系和数据删除能力。</Text>
-        <Text style={styles.detailParagraph}>应用面向康复机构、康复师和家庭随访场景，帮助用户记录训练过程、追踪康复趋势，并提升日常康复管理效率。</Text>
+        <Text style={styles.detailParagraph}>健康守护者是个人作品演示，展示虚构档案、设备状态、评估记录、训练建议草案、互动训练、趋势摘要、账号与删除闭环。</Text>
+        <Text style={styles.detailParagraph}>以下患者、训练与设备数据均为虚构演示数据；它们不代表真实用户、医疗结论、临床验证或运营成果。</Text>
+        <Text style={styles.detailParagraph}>本作品不提供诊断，不能替代医生或康复师，也不用于急救。紧急情况请立即联系当地急救服务。</Text>
         <PrimaryButton label="我知道了" icon="checkmark" onPress={() => setShowAbout(false)} />
       </ModalSheet>
       <ModalSheet visible={showPrivacy} title="隐私政策" subtitle="隐私与数据说明" onClose={() => setShowPrivacy(false)}>
-        <Text style={styles.detailParagraph}>我们会保存你注册时填写的邮箱、姓名、身份，以及在 App 内创建的患者档案、设备状态、评估记录、训练处方、训练记录、报告和资料条目。</Text>
-        <Text style={styles.detailParagraph}>这些数据仅用于账号登录、康复管理、训练记录、报告展示和服务安全，不用于广告画像，不向第三方出售。</Text>
-        <Text style={styles.detailParagraph}>你可以在"我的 - 注销账号与删除数据"中删除当前账号及相关数据。删除完成后，该账号无法继续登录，关联数据会从系统中移除。</Text>
+        <Text style={styles.detailParagraph}>默认工作区在 Web 端通过 AsyncStorage 适配保存到 localStorage，原生端使用 AsyncStorage；持久存储不可用时仅保存在当前运行内存，刷新或关闭后可能丢失。</Text>
+        <Text style={styles.detailParagraph}>只有你选择并成功登录可选服务端账号时，账号与工作区数据才会提交到该服务端。演示部署不承诺医疗合规认证、云端备份或持续可用性。</Text>
+        <Text style={styles.detailParagraph}>配置第三方 AI 后，对话与所选记录会发送给对应服务商或你填写的代理。请勿在公开演示中输入真实敏感医疗数据。</Text>
+        <Text style={styles.detailParagraph}>你可以在“我的 - 注销账号与删除数据”清除本地工作区，或请求删除可选服务端账号及关联记录。</Text>
         <PrimaryButton label="关闭" icon="checkmark" onPress={() => setShowPrivacy(false)} />
       </ModalSheet>
       <ModalSheet visible={showAgreement} title="用户协议" subtitle="服务范围与健康提示" onClose={() => setShowAgreement(false)}>
-        <Text style={styles.detailParagraph}>健康守护者提供康复过程记录、设备管理、评估数据录入、训练处方生成、互动训练和阶段报告等功能。</Text>
-        <Text style={styles.detailParagraph}>本应用用于康复管理辅助，不提供医疗诊断，不替代医生、康复师或其他专业医疗人员意见，也不用于紧急医疗服务。</Text>
-        <Text style={styles.detailParagraph}>用户应确保录入信息真实、合法，并结合专业人员建议进行训练和康复决策。</Text>
+        <Text style={styles.detailParagraph}>健康守护者提供记录整理、设备状态演示、评估数据录入、训练建议草案、互动训练和阶段摘要等作品演示能力。</Text>
+        <Text style={styles.detailParagraph}>本应用不提供诊断；训练建议草案不能替代医生或康复师，也不用于急救。紧急情况请立即联系当地急救服务。</Text>
+        <Text style={styles.detailParagraph}>用户应确保录入信息合法，并由专业人员决定训练或治疗安排。</Text>
         <PrimaryButton label="同意并关闭" icon="checkmark" onPress={() => setShowAgreement(false)} />
       </ModalSheet>
+      {!!aiConfig && <AiConfigModal visible={showAiConfig} config={aiConfig} onClose={() => setShowAiConfig(false)} onSave={(cfg) => { setAiConfig(cfg); setShowAiConfig(false); }} />}
     </ScrollView>
   );
 }
@@ -1601,13 +2049,292 @@ function ProfileMenu({ icon, tone, title, caption, onPress, last, danger }) {
   );
 }
 
-function SettingRow({ icon, tone, label, value, onValueChange, last }) {
+/* ============================ AI 康复助手 ============================ */
+const AI_QUICKS = [
+  {
+    id: 'points', label: '整理记录要点', icon: 'school-outline',
+    prompt: '请说明如何把手功能训练记录整理成便于医生或康复师复核的摘要，不提供诊断或具体处方。',
+    demo: '## 记录整理要点\n- 保留日期、动作、时长、主观感受和异常情况。\n- 区分原始录入、趋势计算与专业人员结论。\n- 将缺失字段列为待确认项，不自行补全。\n- 出现疼痛加重、肿胀或其他异常时，记录发生时间并联系专业人员。\n> 本内容由本地演示规则生成，仅用于记录整理，不提供诊断，不能替代医生或康复师，也不用于急救。',
+  },
+  {
+    id: 'adherence', label: '提升依从性', icon: 'heart-circle-outline',
+    prompt: '请提供不涉及医疗决策的训练记录习惯建议，并提醒训练安排需由专业人员确认。',
+    demo: '## 记录习惯建议\n- 把已由专业人员确认的计划拆成每日勾选项。\n- 每次只记录实际完成情况，不把目标当成结果。\n- 记录中断原因和异常感受，复诊时一并提供。\n- 家属可协助记录，但不应自行调整专业计划。\n> 本内容由本地演示规则生成，仅用于记录整理；训练安排由医生或康复师确认。',
+  },
+  {
+    id: 'grip', label: '握力记录复核', icon: 'barbell-outline',
+    prompt: '请把握力记录整理成待医生或康复师复核的问题清单，不提供训练处方。',
+    demo: '## 待复核清单\n1. 测量工具、姿势和时间是否一致？\n2. 是否记录左右侧、疼痛或疲劳情况？\n3. 数值变化是否连续，还是只有单次测量？\n4. 下一步训练强度、频次和动作应由医生或康复师结合面诊决定。\n> 单次记录不能用于诊断；本助手不提供治疗安排。',
+  },
+  {
+    id: 'safety', label: '居家注意事项', icon: 'shield-checkmark-outline',
+    prompt: '请给出通用安全记录提醒，并明确紧急情况应联系当地急救服务。',
+    demo: '## 通用安全记录提醒\n- 只执行医生或康复师已经确认的训练安排。\n- 记录训练前后出现的疼痛、肿胀、麻木或其他异常。\n- 出现异常时停止自行调整并联系专业人员。\n- 如出现紧急或快速恶化的症状，立即联系当地急救服务。\n> 本助手不提供诊断，不能替代医生或康复师，也不用于急救。',
+  },
+];
+
+function AiMessage({ message, typing }) {
+  const isUser = message.role === 'user';
+  const shown = useTypewriter(message.content, !isUser && typing);
+  if (isUser) {
+    return (
+      <View style={styles.aiRowUser}>
+        <View style={styles.aiBubbleUser}><Text style={styles.aiBubbleUserText}>{message.content}</Text></View>
+      </View>
+    );
+  }
   return (
-    <View style={[styles.profileMenu, !last && styles.rowDivider]}>
-      <IconTile icon={icon} dim={40} size={20} tone={tone} />
-      <Text style={[styles.flex, styles.profileMenuTitle, { marginLeft: 12 }]}>{label}</Text>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ false: '#D7DCE1', true: C.primary }} thumbColor={C.white} ios_backgroundColor="#D7DCE1" />
+    <View style={styles.aiRowBot}>
+      <LinearGradient colors={message.error ? G.coral : G.primary} start={GS} end={GE} style={styles.aiAvatar}>
+        <Ionicons name={message.error ? 'alert' : 'sparkles'} size={15} color={C.white} />
+      </LinearGradient>
+      <View style={styles.aiBubbleBot}>
+        {message.demo && (
+          <View style={styles.aiDemoTag}><Ionicons name="flask-outline" size={11} color={C.amberDeep} /><Text style={styles.aiDemoTagText}>本地演示</Text></View>
+        )}
+        {message.error ? <Text style={styles.aiErrText}>{message.content}</Text> : <MarkdownLite text={shown} />}
+      </View>
     </View>
+  );
+}
+
+function AIDoctorScreen({ aiConfig, setAiConfig, patients, assessments, records, prescriptions }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [typingId, setTypingId] = useState(null);
+  const [showConfig, setShowConfig] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const scrollRef = useRef(null);
+  const abortRef = useRef(null);
+  const configured = aiConfigured(aiConfig);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try { const raw = await Storage.getItem(AI_CHAT_KEY); if (raw && alive) setMessages(JSON.parse(raw)); } catch (e) {}
+      if (alive) setLoaded(true);
+    })();
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => { if (loaded) Storage.setItem(AI_CHAT_KEY, JSON.stringify(messages.slice(-40))).catch(() => {}); }, [messages, loaded]);
+
+  const scrollDown = () => requestAnimationFrame(() => scrollRef.current && scrollRef.current.scrollToEnd({ animated: true }));
+
+  const runAI = async (history, demoFallback) => {
+    setSending(true); scrollDown();
+    const apiMsgs = [{ role: 'system', content: AI_SYSTEM_PROMPT }]
+      .concat(history.slice(-10).map((m) => ({ role: m.role, content: m.prompt || m.content })));
+    try {
+      let reply; let demo = false;
+      if (configured) {
+        const controller = new AbortController(); abortRef.current = controller;
+        reply = await aiChat(aiConfig, apiMsgs, { signal: controller.signal });
+      } else {
+        await new Promise((r) => setTimeout(r, 550));
+        reply = demoFallback || '我是 **AI 康复助手**。当前是本地规则演示，可整理虚构记录并形成待专业人员复核的训练建议草案。\n\n我不提供诊断，不能替代医生或康复师，也不用于急救。连接第三方模型前，请确认其隐私条款，并勿提交真实敏感医疗数据。';
+        demo = true;
+      }
+      const aMsg = { id: uid('m'), role: 'assistant', content: reply, demo };
+      setMessages((prev) => [...prev, aMsg]);
+      setTypingId(aMsg.id);
+    } catch (e) {
+      setMessages((prev) => [...prev, { id: uid('m'), role: 'assistant', content: '请求失败：' + (e.message || '未知错误'), error: true }]);
+    } finally { setSending(false); abortRef.current = null; scrollDown(); }
+  };
+
+  const sendChat = (text) => {
+    const t = (text != null ? text : input).trim();
+    if (!t || sending) return;
+    if (text == null) setInput('');
+    const u = { id: uid('m'), role: 'user', content: t };
+    setMessages((prev) => [...prev, u]);
+    runAI([...messages, u]);
+  };
+  const sendQuick = (q) => {
+    if (sending) return;
+    const u = { id: uid('m'), role: 'user', content: q.label, prompt: q.prompt };
+    setMessages((prev) => [...prev, u]);
+    runAI([...messages, u], q.demo);
+  };
+  const analyzePatient = (p) => {
+    if (sending) return;
+    const ctx = buildPatientContext(p, assessments, records, prescriptions);
+    const u = { id: uid('m'), role: 'user', content: `整理记录 · ${p.name}`, prompt: `请作为 AI 康复助手整理以下记录，给出记录摘要、待医生或康复师复核的问题、训练建议草案和安全提醒；不要提供诊断或治疗方案：\n\n${ctx}` };
+    setMessages((prev) => [...prev, u]);
+    runAI([...messages, u], localRecordSummary(p, assessments, records, prescriptions));
+  };
+  const clearChat = () => {
+    if (!messages.length) return;
+    Alert.alert('清空对话', '确认清空全部对话记录？', [
+      { text: '取消', style: 'cancel' },
+      { text: '清空', style: 'destructive', onPress: () => { setMessages([]); setTypingId(null); } },
+    ]);
+  };
+
+  const empty = messages.length === 0;
+  const providerName = (AI_PROVIDERS.find((p) => p.id === aiConfig.provider) || {}).name || '自定义';
+
+  return (
+    <KeyboardAvoidingView style={styles.aiScreen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+      <View style={styles.aiHeader}>
+        <View style={styles.flex}>
+          <NumberedEyebrow num="·" label="AI ASSISTANT" />
+          <Text style={styles.aiHeaderTitle}>AI 康复助手</Text>
+        </View>
+        <TouchableOpacity onPress={clearChat} activeOpacity={0.75} style={styles.aiHeaderBtn}>
+          <Ionicons name="refresh-outline" size={18} color={C.inkSoft} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowConfig(true)} activeOpacity={0.75} style={[styles.aiHeaderBtn, { marginLeft: 8 }]}>
+          <Ionicons name="settings-outline" size={18} color={C.inkSoft} />
+          <View style={[styles.aiStatusDot, { backgroundColor: configured ? C.primary : C.amber }]} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.aiStatusBar, { backgroundColor: configured ? C.primaryTint : C.amberTint }]}>
+        <Ionicons name={configured ? 'cloud-done-outline' : 'flask-outline'} size={14} color={configured ? C.primaryDeep : C.amberDeep} />
+        <Text style={[styles.aiStatusText, { color: configured ? C.primaryDeep : C.amberDeep }]}>
+          {configured ? `已连接 ${providerName} · ${aiConfig.model}` : '本地演示模式 · 点击右上角连接你的模型'}
+        </Text>
+      </View>
+
+      <ScrollView ref={scrollRef} style={styles.flex} contentContainerStyle={styles.aiScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {empty && (
+          <Appear>
+            <Card style={styles.aiWelcome}>
+              <LinearGradient colors={G.primary} start={GS} end={GE} style={styles.aiWelcomeIcon}>
+                <Ionicons name="sparkles" size={26} color={C.white} />
+              </LinearGradient>
+              <Text style={styles.aiWelcomeTitle}>你好，我是 AI 康复助手</Text>
+              <Text style={styles.aiWelcomeSub}>整理演示记录、标记待复核问题并形成训练建议草案；不提供诊断。</Text>
+              <View style={styles.aiCapRow}>
+                {[{ i: 'analytics-outline', t: '记录解读' }, { i: 'medkit-outline', t: '建议草案' }, { i: 'alert-circle-outline', t: '安全提醒' }].map((c) => (
+                  <View key={c.t} style={styles.aiCapCell}>
+                    <Ionicons name={c.i} size={18} color={C.primaryDeep} />
+                    <Text style={styles.aiCapText}>{c.t}</Text>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          </Appear>
+        )}
+
+        {empty && patients.length > 0 && (
+          <Appear delay={80}>
+            <Text style={styles.aiSectionLabel}>选择演示档案，整理记录</Text>
+            <View style={styles.aiPatientRow}>
+              {patients.map((p) => (
+                <TouchableOpacity key={p.id} activeOpacity={0.85} onPress={() => analyzePatient(p)} style={styles.aiPatientChip}>
+                  <GradientAvatar name={p.name} dim={34} textSize={15} />
+                  <View style={{ marginLeft: 9 }}>
+                    <Text style={styles.aiPatientName}>{p.name}</Text>
+                    <Text style={styles.aiPatientMeta}>{p.diagnosis}</Text>
+                  </View>
+                  <Ionicons name="arrow-forward-circle" size={20} color={C.primary} style={{ marginLeft: 8 }} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Appear>
+        )}
+
+        {empty && (
+          <Appear delay={160}>
+            <Text style={styles.aiSectionLabel}>试试这些问题</Text>
+            <View style={styles.chipRow}>
+              {AI_QUICKS.map((q) => (
+                <TouchableOpacity key={q.id} activeOpacity={0.8} onPress={() => sendQuick(q)} style={styles.aiQuickChip}>
+                  <Ionicons name={q.icon} size={14} color={C.primaryDeep} />
+                  <Text style={styles.aiQuickText}>{q.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Appear>
+        )}
+
+        {messages.map((m) => <AiMessage key={m.id} message={m} typing={m.id === typingId} />)}
+        {sending && (
+          <View style={styles.aiRowBot}>
+            <LinearGradient colors={G.primary} start={GS} end={GE} style={styles.aiAvatar}><Ionicons name="sparkles" size={15} color={C.white} /></LinearGradient>
+            <View style={[styles.aiBubbleBot, styles.aiThinking]}><TypingDots /></View>
+          </View>
+        )}
+        {!empty && <Text style={styles.aiDisclaimer}>仅供记录整理，不提供诊断，不能替代医生或康复师，也不用于急救。</Text>}
+      </ScrollView>
+
+      <View style={styles.aiComposer}>
+        <View style={styles.aiInputBox}>
+          <TextInput
+            value={input} onChangeText={setInput} placeholder={configured ? '向 AI 康复助手提问…' : '本地演示提问…'}
+            placeholderTextColor={C.faint} style={styles.aiInput} multiline
+            onSubmitEditing={() => sendChat()} returnKeyType="send"
+          />
+        </View>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => sendChat()} disabled={sending || !input.trim()} style={styles.aiSendWrap}>
+          <LinearGradient colors={sending || !input.trim() ? ['#C2C7D2', '#A8AEBC'] : G.primaryDeep} start={GS} end={GE} style={styles.aiSendBtn}>
+            <Ionicons name="arrow-up" size={20} color={C.white} />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      <AiConfigModal visible={showConfig} config={aiConfig} onClose={() => setShowConfig(false)} onSave={(cfg) => { setAiConfig(cfg); setShowConfig(false); }} />
+    </KeyboardAvoidingView>
+  );
+}
+
+function AiConfigModal({ visible, config, onClose, onSave }) {
+  const [draft, setDraft] = useState(config);
+  const [testing, setTesting] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  useEffect(() => { if (visible) setDraft(config); }, [visible, config]);
+  const pickProvider = (p) => {
+    setDraft((prev) => ({
+      ...prev, provider: p.id,
+      baseUrl: p.id === 'custom' ? prev.baseUrl : p.baseUrl,
+      model: p.id === 'custom' ? prev.model : p.model,
+    }));
+  };
+  const test = async () => {
+    if (!aiConfigured(draft)) { Alert.alert('提示', '请先填写接口地址、模型和 API Key。'); return; }
+    setTesting(true);
+    try {
+      await aiChat(draft, [{ role: 'user', content: '请只回复两个字：在线' }]);
+      Alert.alert('连接成功', '模型已正常响应，可以开始使用了。');
+    } catch (e) { Alert.alert('连接失败', e.message || '请检查配置。'); }
+    finally { setTesting(false); }
+  };
+  const active = AI_PROVIDERS.find((p) => p.id === draft.provider) || AI_PROVIDERS[0];
+  return (
+    <ModalSheet visible={visible} title="连接 AI 模型" subtitle="Key 本机保存 · 调用时发往所选服务" onClose={onClose}>
+      <View style={styles.aiKeyNote}>
+        <Ionicons name="lock-closed" size={13} color={C.primaryDeep} />
+        <Text style={styles.aiKeyNoteText}>API Key 只持久化在当前设备；发起调用时会随请求发送给所选 AI 服务商或你填写的代理。费用与数据处理遵循对应服务条款。</Text>
+      </View>
+      <Text style={styles.inputLabel}>选择服务商</Text>
+      <View style={styles.chipRow}>
+        {AI_PROVIDERS.map((p) => <Chip key={p.id} label={p.name} active={draft.provider === p.id} onPress={() => pickProvider(p)} />)}
+      </View>
+      {!!active.hint && (
+        <View style={styles.aiProviderHint}>
+          <Ionicons name="information-circle-outline" size={13} color={C.muted} />
+          <Text style={styles.aiProviderHintText}>{active.hint}{active.keyUrl ? ` · 申请 Key：${active.keyUrl}` : ''}</Text>
+        </View>
+      )}
+      <InputField label="接口地址 Base URL" icon="link-outline" value={draft.baseUrl} onChangeText={(v) => setDraft((p) => ({ ...p, baseUrl: v }))} placeholder="https://api.deepseek.com/v1" />
+      <InputField label="模型名称" icon="cube-outline" value={draft.model} onChangeText={(v) => setDraft((p) => ({ ...p, model: v }))} placeholder="deepseek-chat" />
+      <InputField label="API Key" icon="key-outline" value={draft.apiKey} onChangeText={(v) => setDraft((p) => ({ ...p, apiKey: v }))} placeholder="sk-..." secureTextEntry={!showKey}
+        right={(
+          <TouchableOpacity onPress={() => setShowKey((v) => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name={showKey ? 'eye-off-outline' : 'eye-outline'} size={19} color={C.faint} />
+          </TouchableOpacity>
+        )}
+      />
+      <InputField label="代理地址（可选，Web 端绕过 CORS 用）" icon="git-network-outline" value={draft.proxyUrl} onChangeText={(v) => setDraft((p) => ({ ...p, proxyUrl: v }))} placeholder="留空则 App 直连，安卓端无需填写" />
+      <View style={styles.btnRow}>
+        <PrimaryButton label={testing ? '测试中…' : '测试连接'} icon="pulse-outline" tone="ghost" onPress={test} disabled={testing} style={styles.flex} />
+        <View style={styles.btnGap} />
+        <PrimaryButton label="保存" icon="checkmark" onPress={() => onSave(draft)} style={styles.flex} />
+      </View>
+    </ModalSheet>
   );
 }
 
@@ -1626,14 +2353,14 @@ function QuickFlowModal({ flow, patients, onClose, addAssessment, addPrescriptio
   const config = flow === 'assessment'
     ? { title: '快捷新建评估', subtitle: '从工作台快速创建一条评估记录', label: '综合评分', placeholder: '0-100', button: '保存评估', icon: 'clipboard-outline' }
     : flow === 'prescription'
-      ? { title: '快捷生成处方', subtitle: '生成一条待确认训练处方', label: '单次时长（分钟）', placeholder: '15', button: '生成处方', icon: 'medkit-outline' }
+      ? { title: '快捷新建建议草案', subtitle: '生成一条待专业人员确认的训练建议草案', label: '单次时长（分钟）', placeholder: '15', button: '保存建议草案', icon: 'medkit-outline' }
       : { title: '快捷生成报告', subtitle: '生成一份可查看的阶段总结', label: '报告标题', placeholder: '阶段康复报告', button: '生成报告', icon: 'document-text-outline' };
   const submit = () => {
     if (flow === 'assessment') {
       const score = clamp(Number(value || 0), 0, 100);
       addAssessment({ id: uid('a'), patient, date: today, grip: Math.round(score / 3), rom: score, pain: score > 75 ? 2 : 4, adl: score, score, note: note || '工作台快捷录入评估。' });
     } else if (flow === 'prescription') {
-      addPrescription({ id: uid('rx'), patient, title: '快捷康复训练处方', intensity: '中等', frequency: '每日 2 次', duration: (value || 15) + ' 分钟', status: '待确认', focus: note || '抓握稳定性、精细动作' });
+      addPrescription({ id: uid('rx'), patient, title: '快捷训练建议草案', intensity: '中等', frequency: '每日 2 次', duration: (value || 15) + ' 分钟', status: '待专业人员确认', focus: note || '抓握稳定性、精细动作' });
     } else {
       addReport({ id: uid('rp'), patient, title: value || '阶段康复报告', date: today, status: '已生成', summary: note || '系统已生成阶段总结，建议结合评估记录和医生意见复核。' });
     }
@@ -1657,6 +2384,16 @@ function TabBar({ value, onChange }) {
       <View style={styles.tabBar}>
         {tabs.map((tab) => {
           const active = value === tab.key;
+          if (tab.center) {
+            return (
+              <TouchableOpacity key={tab.key} style={styles.tabCenterItem} activeOpacity={0.85} onPress={() => onChange(tab.key)}>
+                <LinearGradient colors={active ? G.primary : G.primaryDeep} start={GS} end={GE} style={styles.tabCenterBtn}>
+                  <Ionicons name={active ? tab.activeIcon : tab.icon} size={25} color={C.white} />
+                </LinearGradient>
+                <Text style={[styles.tabCenterLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
+              </TouchableOpacity>
+            );
+          }
           return (
             <TouchableOpacity key={tab.key} style={styles.tabItem} activeOpacity={0.7} onPress={() => onChange(tab.key)}>
               {active ? (
@@ -1690,6 +2427,8 @@ export default function App() {
   const [reports, setReports] = useState(initialReports);
   const [storage, setStorage] = useState(initialStorage);
   const [tasks, setTasks] = useState(initialTasks);
+  const [engagement, setEngagement] = useState(initialEngagement);
+  const [aiConfig, setAiConfigState] = useState(DEFAULT_AI_CONFIG);
   const [flow, setFlow] = useState(null);
   const persistTimer = useRef(null);
 
@@ -1703,7 +2442,9 @@ export default function App() {
     setReports(Array.isArray(appData.reports) ? appData.reports : fallback.reports);
     setStorage(Array.isArray(appData.storage) ? appData.storage : fallback.storage);
     setTasks(Array.isArray(appData.tasks) ? appData.tasks : fallback.tasks);
+    setEngagement(appData.engagement && typeof appData.engagement === 'object' ? { ...initialEngagement, ...appData.engagement } : fallback.engagement);
   };
+  const updateAiConfig = (cfg) => { setAiConfigState(cfg); persistAiConfig(cfg); };
   const resetLocalData = () => { applyAppData(defaultAppData()); setActiveTab('workbench'); setFlow(null); };
   const readWorkspaceSession = async () => {
     const savedUser = await Storage.getItem(WORKSPACE_USER_KEY);
@@ -1719,6 +2460,7 @@ export default function App() {
     let alive = true;
     const bootstrap = async () => {
       try {
+        loadAiConfig().then((cfg) => { if (alive) setAiConfigState(cfg); });
         const savedToken = await Storage.getItem(AUTH_TOKEN_KEY);
         if (savedToken) {
           if (savedToken === WORKSPACE_TOKEN) {
@@ -1749,7 +2491,7 @@ export default function App() {
     if (!token || !user) return undefined;
     if (persistTimer.current) clearTimeout(persistTimer.current);
     persistTimer.current = setTimeout(() => {
-      const appData = { patients, devices, assessments, prescriptions, records, reports, storage, tasks };
+      const appData = { patients, devices, assessments, prescriptions, records, reports, storage, tasks, engagement };
       if (token === WORKSPACE_TOKEN) {
         Storage.setItem(WORKSPACE_DATA_KEY, JSON.stringify(appData)).catch((error) => console.warn('Local save failed', error.message));
         return;
@@ -1758,7 +2500,7 @@ export default function App() {
       apiRequest('/api/app-data', { method: 'PUT', token, body: { appData } }).catch((error) => console.warn('Sync failed', error.message));
     }, 900);
     return () => { if (persistTimer.current) clearTimeout(persistTimer.current); };
-  }, [token, user, cloudReady, patients, devices, assessments, prescriptions, records, reports, storage, tasks]);
+  }, [token, user, cloudReady, patients, devices, assessments, prescriptions, records, reports, storage, tasks, engagement]);
 
   const handleAuthenticated = (data, options = {}) => {
     applyAppData(data.appData); setToken(data.token); setUser(data.user); setCloudReady(!options.local);
@@ -1835,16 +2577,24 @@ export default function App() {
   if (!user) return <LoginScreen onLogin={handleAuthenticated} onWorkspaceLogin={handleWorkspaceLogin} />;
 
   const renderScreen = () => {
-    if (activeTab === 'device') return <DeviceScreen devices={devices} setDevices={setDevices} />;
+    if (activeTab === 'device') return <DeviceScreen devices={devices} setDevices={setDevices} onBack={() => setActiveTab('workbench')} />;
+    if (activeTab === 'ai') return <AIDoctorScreen aiConfig={aiConfig} setAiConfig={updateAiConfig} patients={patients} assessments={assessments} records={records} prescriptions={prescriptions} />;
     if (activeTab === 'training') return <TrainingScreen patients={patients} setPatients={setPatients} assessments={assessments} setAssessments={setAssessments} prescriptions={prescriptions} setPrescriptions={setPrescriptions} records={records} setRecords={setRecords} />;
     if (activeTab === 'data') return <DataScreen records={records} setRecords={setRecords} reports={reports} setReports={setReports} storage={storage} />;
-    if (activeTab === 'profile') return <ProfileScreen user={user} setUser={setUser} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} onUpdateUser={handleUpdateUser} />;
-    return <WorkbenchScreen user={user} patients={patients} devices={devices} assessments={assessments} records={records} reports={reports} tasks={tasks} setTasks={setTasks} openFlow={setFlow} goTab={setActiveTab} />;
+    if (activeTab === 'profile') return <ProfileScreen user={user} setUser={setUser} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} onUpdateUser={handleUpdateUser} aiConfig={aiConfig} setAiConfig={updateAiConfig} />;
+    return <WorkbenchScreen user={user} patients={patients} devices={devices} assessments={assessments} records={records} reports={reports} tasks={tasks} setTasks={setTasks} engagement={engagement} setEngagement={setEngagement} aiConfig={aiConfig} openFlow={setFlow} goTab={setActiveTab} />;
   };
 
   return (
     <SafeAreaView style={styles.appRoot}>
       <StatusBar style="dark" />
+      <View style={styles.productBoundaryBanner}>
+        <View style={styles.productBoundaryTop}>
+          <Ionicons name="flask-outline" size={14} color={C.amberDeep} />
+          <Text style={styles.productBoundaryTitle}>个人作品演示</Text>
+        </View>
+        <Text style={styles.productBoundaryText}>以下患者、训练与设备数据均为虚构演示数据 · 不提供诊断 · 不能替代医生或康复师 · 不用于急救</Text>
+      </View>
       <View style={styles.appBody}>{renderScreen()}</View>
       <TabBar value={activeTab} onChange={setActiveTab} />
       <QuickFlowModal flow={flow} patients={patients} onClose={() => setFlow(null)} addAssessment={addAssessment} addPrescription={addPrescription} addReport={addReport} />
@@ -1867,6 +2617,10 @@ const styles = StyleSheet.create({
     } : {}),
   },
   appBody: { flex: 1, backgroundColor: C.bg },
+  productBoundaryBanner: { backgroundColor: '#FFF7E5', borderBottomWidth: 1, borderBottomColor: '#E9D7AE', paddingHorizontal: 16, paddingVertical: 8 },
+  productBoundaryTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  productBoundaryTitle: { color: C.amberDeep, fontSize: 11.5, fontWeight: '900', marginLeft: 5, letterSpacing: 0.4 },
+  productBoundaryText: { color: C.inkSoft, fontSize: 10.5, lineHeight: 15, fontWeight: '600' },
   screen: { flex: 1, backgroundColor: C.bg },
   screenContent: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 120 },
 
@@ -1901,6 +2655,9 @@ const styles = StyleSheet.create({
   loginMedallion: { marginBottom: 18 },
   loginTitle: { fontSize: 28, fontWeight: '800', color: C.ink, letterSpacing: 1, marginTop: 4 },
   loginSubtitle: { fontSize: 13, color: C.muted, marginTop: 8, letterSpacing: 0.3 },
+  loginDisclosure: { width: '100%', backgroundColor: '#FFF7E5', borderWidth: 1, borderColor: '#E9D7AE', borderRadius: 14, padding: 12, marginTop: 16 },
+  loginDisclosureTitle: { color: C.amberDeep, fontSize: 12, fontWeight: '900', marginBottom: 4 },
+  loginDisclosureText: { color: C.inkSoft, fontSize: 11, lineHeight: 16, fontWeight: '600' },
   loginCard: { padding: 20, marginBottom: 0 },
   loginToggle: { flexDirection: 'row', padding: 4, backgroundColor: C.surfaceMuted, borderRadius: 13, marginBottom: 18 },
   loginToggleItem: { flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
@@ -2112,6 +2869,9 @@ const styles = StyleSheet.create({
   recordBottom: { flexDirection: 'row', alignItems: 'center', marginTop: 14, marginBottom: 14 },
   recordMeta: { color: C.muted, fontSize: 12, fontWeight: '600', marginRight: 10 },
   recordPct: { fontSize: 12.5, fontWeight: '800', marginLeft: 10 },
+  exportPreview: { backgroundColor: '#F4F7F5', borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 13, marginBottom: 14 },
+  exportPreviewLabel: { color: C.primaryDeep, fontSize: 10.5, fontWeight: '900', letterSpacing: 0.8, marginBottom: 8 },
+  exportPreviewText: { color: C.inkSoft, fontSize: 12, lineHeight: 18 },
 
   /* game */
   gameCard: { padding: 18 },
@@ -2190,4 +2950,119 @@ const styles = StyleSheet.create({
   tabIconActive: { width: 40, height: 30, borderRadius: 11, alignItems: 'center', justifyContent: 'center', ...SHADOW.glowPrimary },
   tabLabel: { color: C.muted, fontSize: 10.5, fontWeight: '700', marginTop: 4 },
   tabLabelActive: { color: C.primaryDeep },
+  tabCenterItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tabCenterBtn: { width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginTop: -30, borderWidth: 4, borderColor: C.surface, ...SHADOW.glowPrimary },
+  tabCenterLabel: { color: C.primaryDeep, fontSize: 10.5, fontWeight: '800', marginTop: 5 },
+
+  /* back row */
+  backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, marginTop: 2 },
+  backText: { color: C.primaryDeep, fontSize: 13.5, fontWeight: '800', marginLeft: 2 },
+
+  /* markdown lite */
+  mdBold: { fontWeight: '800', color: C.ink },
+  mdH: { fontSize: 14.5, fontWeight: '900', color: C.ink, marginTop: 10, marginBottom: 4, letterSpacing: 0.2 },
+  mdP: { fontSize: 13.5, lineHeight: 21, color: C.inkSoft, flexShrink: 1 },
+  mdRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 4, paddingRight: 4 },
+  mdDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary, marginTop: 7, marginRight: 9 },
+  mdNum: { fontSize: 13, fontWeight: '900', color: C.primaryDeep, marginRight: 8, marginTop: 0.5, minWidth: 14 },
+  mdQuote: { flexDirection: 'row', backgroundColor: C.amberTint, borderRadius: 10, padding: 10, marginTop: 10, borderLeftWidth: 3, borderLeftColor: C.amber },
+  mdQuoteText: { fontSize: 12, lineHeight: 18, color: C.amberDeep, flex: 1, fontWeight: '600' },
+
+  /* achievements */
+  achCard: { padding: 16 },
+  achRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  achItem: { alignItems: 'center', flex: 1 },
+  achMedal: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  achMedalLock: { backgroundColor: C.surfaceMuted, borderWidth: 1, borderColor: C.border },
+  achLabel: { fontSize: 10.5, color: C.inkSoft, fontWeight: '700', marginTop: 8, textAlign: 'center' },
+
+  /* workbench: AI banner */
+  aiBanner: { borderRadius: 22, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 16 },
+  aiBannerIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', marginRight: 14 },
+  aiBannerTagRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  aiBannerTag: { backgroundColor: '#1FD09B', color: '#063D34', fontSize: 9.5, fontWeight: '900', letterSpacing: 0.8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, marginRight: 8, overflow: 'hidden' },
+  aiBannerEyebrow: { color: 'rgba(255,255,255,0.82)', fontSize: 11, fontWeight: '800', letterSpacing: 2 },
+  aiBannerTitle: { color: C.white, fontSize: 15.5, fontWeight: '900', letterSpacing: 0.2 },
+  aiBannerSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '600', marginTop: 4 },
+
+  /* workbench: streak */
+  streakCard: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  streakFlame: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  streakNumRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  streakNum: { fontSize: 30, fontWeight: '900', color: C.ink, letterSpacing: -1, lineHeight: 32 },
+  streakUnit: { fontSize: 14, color: C.muted, fontWeight: '800', marginLeft: 4, marginBottom: 3 },
+  streakLabel: { fontSize: 12, color: C.muted, fontWeight: '600', marginTop: 4 },
+  streakBtnWrap: SHADOW.glowPrimary,
+  streakBtn: { flexDirection: 'row', alignItems: 'center', height: 40, paddingHorizontal: 16, borderRadius: 13 },
+  streakBtnText: { color: C.white, fontSize: 13.5, fontWeight: '800', marginLeft: 6 },
+
+  /* workbench: plan */
+  planCard: { padding: 16 },
+  planHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 14, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: C.divider },
+  planRingWrap: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  planRingText: { position: 'absolute', fontSize: 11, fontWeight: '900', color: C.primaryDeep },
+  planHeadText: { flex: 1, fontSize: 13, color: C.inkSoft, fontWeight: '700', lineHeight: 19 },
+  planRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  planCheck: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  planCheckDone: { backgroundColor: C.primaryDeep, borderColor: C.primaryDeep },
+  planTitle: { fontSize: 14, fontWeight: '700', color: C.ink },
+  planMeta: { fontSize: 11.5, color: C.muted, marginTop: 3 },
+
+  /* workbench: knowledge */
+  knowScroll: { paddingRight: 8, paddingBottom: 4 },
+  knowCard: { width: 220, backgroundColor: C.surface, borderRadius: 18, borderWidth: 1, borderColor: C.border, padding: 15, marginRight: 12, ...SHADOW.card },
+  knowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  knowTag: { backgroundColor: C.surfaceMuted, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 },
+  knowTagText: { fontSize: 10.5, color: C.inkSoft, fontWeight: '800', letterSpacing: 0.5 },
+  knowTitle: { fontSize: 14.5, fontWeight: '800', color: C.ink, marginBottom: 6 },
+  knowBody: { fontSize: 12, color: C.muted, lineHeight: 19 },
+
+  /* AI doctor screen */
+  aiScreen: { flex: 1, backgroundColor: C.bg },
+  aiHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 14, paddingBottom: 8 },
+  aiHeaderTitle: { fontSize: 24, fontWeight: '900', color: C.ink, letterSpacing: 0.3, marginTop: 2 },
+  aiHeaderBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  aiStatusDot: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: C.surface },
+  aiStatusBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 11, marginBottom: 8 },
+  aiStatusText: { fontSize: 11.5, fontWeight: '700', marginLeft: 7, flex: 1 },
+  aiScroll: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 16 },
+
+  aiWelcome: { alignItems: 'center', paddingVertical: 24 },
+  aiWelcomeIcon: { width: 58, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center', ...SHADOW.glowPrimary },
+  aiWelcomeTitle: { fontSize: 18, fontWeight: '900', color: C.ink, marginTop: 14 },
+  aiWelcomeSub: { fontSize: 13, color: C.muted, lineHeight: 20, textAlign: 'center', marginTop: 8, paddingHorizontal: 6 },
+  aiCapRow: { flexDirection: 'row', marginTop: 18, alignSelf: 'stretch', justifyContent: 'space-between' },
+  aiCapCell: { flex: 1, alignItems: 'center', backgroundColor: C.surfaceMuted, borderRadius: 14, paddingVertical: 14, marginHorizontal: 4 },
+  aiCapText: { fontSize: 12, color: C.inkSoft, fontWeight: '700', marginTop: 7 },
+  aiSectionLabel: { fontSize: 12.5, fontWeight: '800', color: C.inkSoft, letterSpacing: 0.5, marginTop: 18, marginBottom: 10 },
+  aiPatientRow: {},
+  aiPatientChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 10, ...SHADOW.card },
+  aiPatientName: { fontSize: 14.5, fontWeight: '800', color: C.ink },
+  aiPatientMeta: { fontSize: 12, color: C.muted, marginTop: 2 },
+  aiQuickChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.primaryTint, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 999, marginRight: 8, marginBottom: 9 },
+  aiQuickText: { color: C.primaryDeep, fontSize: 12.5, fontWeight: '800', marginLeft: 6 },
+
+  aiRowUser: { alignItems: 'flex-end', marginTop: 14 },
+  aiBubbleUser: { maxWidth: '82%', backgroundColor: C.primaryDeep, borderRadius: 18, borderBottomRightRadius: 5, paddingHorizontal: 14, paddingVertical: 11, ...SHADOW.card },
+  aiBubbleUserText: { color: C.white, fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  aiRowBot: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 14 },
+  aiAvatar: { width: 30, height: 30, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginRight: 9, marginTop: 2 },
+  aiBubbleBot: { flex: 1, backgroundColor: C.surface, borderRadius: 18, borderTopLeftRadius: 5, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, paddingVertical: 12, ...SHADOW.card },
+  aiThinking: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 },
+  aiDemoTag: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: C.amberTint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, marginBottom: 8 },
+  aiDemoTagText: { color: C.amberDeep, fontSize: 10.5, fontWeight: '800', marginLeft: 4, letterSpacing: 0.3 },
+  aiErrText: { color: C.coralDeep, fontSize: 13.5, lineHeight: 20, fontWeight: '600' },
+  aiDisclaimer: { fontSize: 11, color: C.faint, textAlign: 'center', marginTop: 18, lineHeight: 17, paddingHorizontal: 10 },
+
+  aiComposer: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 8 : 10, marginBottom: Platform.OS === 'ios' ? 96 : 88, backgroundColor: C.bg },
+  aiInputBox: { flex: 1, minHeight: 48, maxHeight: 120, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, justifyContent: 'center', paddingHorizontal: 14, marginRight: 10, ...SHADOW.card },
+  aiInput: { color: C.ink, fontSize: 15, paddingVertical: Platform.OS === 'ios' ? 12 : 8 },
+  aiSendWrap: SHADOW.glowPrimary,
+  aiSendBtn: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+
+  /* AI config modal */
+  aiKeyNote: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.primaryTint, borderRadius: 12, padding: 12, marginBottom: 16 },
+  aiKeyNoteText: { flex: 1, color: C.primaryDeep, fontSize: 12, lineHeight: 18, fontWeight: '600', marginLeft: 8 },
+  aiProviderHint: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, marginTop: -2 },
+  aiProviderHintText: { color: C.muted, fontSize: 11.5, marginLeft: 6, flex: 1, fontWeight: '600' },
 });
