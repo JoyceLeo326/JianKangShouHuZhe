@@ -13,6 +13,7 @@ import Svg, {
   Circle, Path, Rect, G as SvgG, Line,
 } from 'react-native-svg';
 const { buildReportMarkdown, reportFileName } = require('./src/report-export');
+const { publicCostStatus } = require('./src/cost-policy');
 
 const { width } = Dimensions.get('window');
 const APP_WIDTH = Platform.OS === 'web' ? Math.min(width, 430) : width;
@@ -153,6 +154,10 @@ const SHADOW = {
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 const HAS_CLOUD_API = Boolean(API_BASE_URL);
+const COST_STATUS = publicCostStatus({
+  COST_MODE: process.env.COST_MODE,
+  EXPO_PUBLIC_COST_MODE: process.env.EXPO_PUBLIC_COST_MODE,
+});
 const AUTH_TOKEN_KEY = 'jkshz_auth_token';
 const WORKSPACE_TOKEN = 'workspace_session_token';
 const WORKSPACE_USER_KEY = 'jkshz_workspace_user';
@@ -176,7 +181,7 @@ async function apiRequest(path, { method = 'GET', body, token } = {}) {
 
 /* ============================================================
  * AI 康复助手 —— BYOK（用户自带 Key）OpenAI 兼容客户端
- * 设计原则：API Key 只保存在本机，绝不上传我们的服务器；
+ * 设计原则：API Key 只保存在当前运行内存，绝不写入本地持久存储或我们的服务器；
  * 安卓原生直连国内厂商（无 CORS 限制），可选填代理地址供 Web 端绕过 CORS。
  * ============================================================ */
 const AI_CONFIG_KEY = 'jkshz_ai_config';
@@ -196,7 +201,9 @@ async function loadAiConfig() {
   try { const raw = await Storage.getItem(AI_CONFIG_KEY); if (raw) return { ...DEFAULT_AI_CONFIG, ...JSON.parse(raw) }; } catch (e) {}
   return { ...DEFAULT_AI_CONFIG };
 }
-async function persistAiConfig(cfg) { try { await Storage.setItem(AI_CONFIG_KEY, JSON.stringify(cfg)); } catch (e) {} }
+async function persistAiConfig(cfg) {
+  try { await Storage.setItem(AI_CONFIG_KEY, JSON.stringify({ ...cfg, apiKey: '' })); } catch (e) {}
+}
 function aiConfigured(cfg) { return Boolean(cfg && cfg.apiKey && cfg.baseUrl && cfg.model); }
 
 async function aiChat(cfg, messages, { signal } = {}) {
@@ -2159,10 +2166,17 @@ function AIDoctorScreen({ aiConfig, setAiConfig, patients, assessments, records,
   };
   const analyzePatient = (p) => {
     if (sending) return;
-    const ctx = buildPatientContext(p, assessments, records, prescriptions);
-    const u = { id: uid('m'), role: 'user', content: `整理记录 · ${p.name}`, prompt: `请作为 AI 康复助手整理以下记录，给出记录摘要、待医生或康复师复核的问题、训练建议草案和安全提醒；不要提供诊断或治疗方案：\n\n${ctx}` };
-    setMessages((prev) => [...prev, u]);
-    runAI([...messages, u], localRecordSummary(p, assessments, records, prescriptions));
+    const run = () => {
+      const ctx = buildPatientContext(p, assessments, records, prescriptions);
+      const u = { id: uid('m'), role: 'user', content: `整理记录 · ${p.name}`, prompt: `请作为 AI 康复助手整理以下记录，给出记录摘要、待医生或康复师复核的问题、训练建议草案和安全提醒；不要提供诊断或治疗方案：\n\n${ctx}` };
+      setMessages((prev) => [...prev, u]);
+      runAI([...messages, u], localRecordSummary(p, assessments, records, prescriptions));
+    };
+    if (!configured) { run(); return; }
+    Alert.alert('发送虚构演示记录到第三方模型', '确认仅发送当前虚构演示数据，并已了解所选服务商的数据与费用条款？请勿发送真实敏感健康数据。', [
+      { text: '取消', style: 'cancel' },
+      { text: '确认发送', onPress: run },
+    ]);
   };
   const clearChat = () => {
     if (!messages.length) return;
@@ -2304,10 +2318,10 @@ function AiConfigModal({ visible, config, onClose, onSave }) {
   };
   const active = AI_PROVIDERS.find((p) => p.id === draft.provider) || AI_PROVIDERS[0];
   return (
-    <ModalSheet visible={visible} title="连接 AI 模型" subtitle="Key 本机保存 · 调用时发往所选服务" onClose={onClose}>
+    <ModalSheet visible={visible} title="连接 AI 模型" subtitle="Key 仅当前运行 · 调用时发往所选服务" onClose={onClose}>
       <View style={styles.aiKeyNote}>
         <Ionicons name="lock-closed" size={13} color={C.primaryDeep} />
-        <Text style={styles.aiKeyNoteText}>API Key 只持久化在当前设备；发起调用时会随请求发送给所选 AI 服务商或你填写的代理。费用与数据处理遵循对应服务条款。</Text>
+        <Text style={styles.aiKeyNoteText}>API Key 不会写入本地持久存储；发起调用时会随请求发送给所选 AI 服务商或你填写的代理。费用与数据处理遵循对应服务条款。</Text>
       </View>
       <Text style={styles.inputLabel}>选择服务商</Text>
       <View style={styles.chipRow}>
@@ -2594,6 +2608,7 @@ export default function App() {
           <Text style={styles.productBoundaryTitle}>个人作品演示</Text>
         </View>
         <Text style={styles.productBoundaryText}>以下患者、训练与设备数据均为虚构演示数据 · 不提供诊断 · 不能替代医生或康复师 · 不用于急救</Text>
+        <Text style={styles.productBoundaryText}>零成本模式：{COST_STATUS.mode} · AI 默认关闭/本地演示 · 无自动超额扣费 · BYOK / BYOI</Text>
       </View>
       <View style={styles.appBody}>{renderScreen()}</View>
       <TabBar value={activeTab} onChange={setActiveTab} />
