@@ -65,7 +65,9 @@ app.get('/health-disclaimer', (req, res) => res.type('html').send(healthDisclaim
 app.post('/api/auth/register', async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const name = String(req.body.name || '').trim();
-  const role = String(req.body.role || '康复师').trim();
+  // Public registration never grants a professional role. Institutions must
+  // verify clinicians through a separate invitation and approval workflow.
+  const role = 'patient';
   const password = String(req.body.password || '');
 
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'INVALID_EMAIL', message: '请输入有效邮箱。' });
@@ -113,12 +115,10 @@ app.get('/api/me', auth, (req, res) => {
 
 app.patch('/api/me', auth, (req, res) => {
   const name = String(req.body.name || '').trim();
-  const role = String(req.body.role || '').trim();
   if (!name) return res.status(400).json({ error: 'INVALID_NAME', message: '姓名不能为空。' });
   const db = req.db;
   const user = db.users.find((item) => item.id === req.user.id);
   user.name = name;
-  user.role = role || user.role;
   user.updatedAt = new Date().toISOString();
   writeDb(db);
   res.json({ user: publicUser(user) });
@@ -142,6 +142,11 @@ app.put('/api/app-data', auth, (req, res) => {
     reports: Array.isArray(data.reports) ? data.reports : [],
     storage: Array.isArray(data.storage) ? data.storage : [],
     tasks: Array.isArray(data.tasks) ? data.tasks : [],
+    consents: Array.isArray(data.consents) ? data.consents : [],
+    auditEvents: Array.isArray(data.auditEvents) ? data.auditEvents : [],
+    aiRuns: Array.isArray(data.aiRuns) ? data.aiRuns : [],
+    outbox: Array.isArray(data.outbox) ? data.outbox : [],
+    syncConflicts: Array.isArray(data.syncConflicts) ? data.syncConflicts : [],
     engagement: data.engagement && typeof data.engagement === 'object' ? data.engagement : {},
     updatedAt: new Date().toISOString()
   };
