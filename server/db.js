@@ -1,68 +1,36 @@
 const fs = require('fs');
 const path = require('path');
-const bcrypt = require('bcryptjs');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_PATH = process.env.DB_PATH || path.join(DATA_DIR, 'db.json');
 
-const initialAppData = {
-  patients: [
-    { id: 'p1', name: '李明', age: '62', diagnosis: '脑卒中恢复期', side: '右手', stage: '第4周', risk: '低风险', next: '今天 15:00', phone: '13800000001' },
-    { id: 'p2', name: '王阿姨', age: '68', diagnosis: '腕关节术后', side: '左手', stage: '第2周', risk: '中风险', next: '明天 10:30', phone: '13800000002' }
-  ],
-  devices: [
-    { id: 'd1', name: '智能握力手套 A01', type: '康复手套', status: 'online', battery: 82, signal: 94, patient: '李明', lastSync: '3分钟前' },
-    { id: 'd2', name: '腕部活动度传感器 B12', type: '角度传感器', status: 'online', battery: 57, signal: 76, patient: '王阿姨', lastSync: '18分钟前' },
-  { id: 'd3', name: '肌张力采集器 C07', type: '肌电设备', status: 'standby', battery: 21, signal: 18, patient: '未绑定', lastSync: '昨天 19:20' }
-  ],
-  assessments: [
-    { id: 'a1', patient: '李明', date: '2026-04-26', grip: 22, rom: 66, pain: 2, adl: 72, score: 78, note: '虚构演示记录：握力数值较前次记录增加，训练安排待专业人员复核。' },
-    { id: 'a2', patient: '王阿姨', date: '2026-04-25', grip: 15, rom: 48, pain: 4, adl: 58, score: 64, note: '虚构演示记录：已记录活动度与疼痛数值，未形成医疗判断。' }
-  ],
-  prescriptions: [
-    { id: 'rx1', patient: '李明', title: '手指分离记录草案', intensity: '中等', frequency: '每日 2 次', duration: '15 分钟', status: '待专业人员确认', focus: '精细动作、抓握稳定性' },
-    { id: 'rx2', patient: '王阿姨', title: '腕关节活动记录草案', intensity: '轻柔', frequency: '每日 3 次', duration: '10 分钟', status: '待专业人员确认', focus: '屈伸活动度、疼痛记录' }
-  ],
-  records: [
-    { id: 'r1', patient: '李明', type: '抓握训练', date: '2026-04-26', duration: 18, completion: 92, score: 86 },
-    { id: 'r2', patient: '王阿姨', type: '腕部活动', date: '2026-04-25', duration: 12, completion: 78, score: 73 },
-    { id: 'r3', patient: '李明', type: '精细动作', date: '2026-04-24', duration: 15, completion: 88, score: 81 }
-  ],
-  reports: [
-    { id: 'rp1', patient: '李明', title: '第4周训练记录摘要', date: '2026-04-26', status: '演示草案', summary: '虚构记录显示本周握力数值与完成率高于前次；不据此形成训练调整或医疗结论。' },
-    { id: 'rp2', patient: '王阿姨', title: '活动度记录摘要', date: '2026-04-25', status: '待专业人员复核', summary: '虚构记录包含疼痛与腕部活动度数值；下一步安排由医生或康复师判断。' }
-  ],
-  storage: [
-    { id: 's1', title: '评估量表模板', type: '模板', owner: '系统', updated: '2026-04-21', size: '124 KB' },
-    { id: 's2', title: '李明-训练曲线原始数据', type: '数据', owner: '张医生', updated: '2026-04-26', size: '2.1 MB' },
-    { id: 's3', title: '患者知情同意书', type: '文档', owner: '管理员', updated: '2026-04-18', size: '430 KB' }
-  ],
-  tasks: [
-    { id: 't1', title: '李明 15:00 复评', meta: '握力 + ROM', priority: '高', done: false },
-    { id: 't2', title: '王阿姨建议草案复核', meta: '术后第2周', priority: '中', done: false },
-    { id: 't3', title: '同步手套 A01 数据', meta: '设备中心', priority: '低', done: true }
-  ],
-  engagement: { streak: 6, lastCheckIn: '', totalCheckIns: 23, planDate: '', planDone: [] }
-};
+function emptyAppData() {
+  return {
+    patients: [],
+    devices: [],
+    assessments: [],
+    prescriptions: [],
+    records: [],
+    reports: [],
+    storage: [],
+    tasks: [],
+    consents: [],
+    auditEvents: [],
+    aiRuns: [],
+    outbox: [],
+    syncConflicts: [],
+    engagement: { streak: 0, lastCheckIn: '', totalCheckIns: 0, planDate: '', planDone: [] }
+  };
+}
+
+const initialAppData = emptyAppData();
 
 function ensureDb() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_PATH)) {
-    const now = new Date().toISOString();
-    const initialUser = {
-      id: 'primary_user',
-      email: 'doctor@jiankang.app',
-      name: '张医生',
-      role: '康复师',
-      passwordHash: bcrypt.hashSync('Password2026', 10),
-      createdAt: now,
-      updatedAt: now
-    };
     writeDb({
-      users: [initialUser],
-      appData: {
-        primary_user: { ...initialAppData, updatedAt: now }
-      },
+      users: [],
+      appData: {},
       deletionRequests: []
     });
   }
