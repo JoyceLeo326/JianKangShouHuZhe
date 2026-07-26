@@ -46,9 +46,14 @@ if (!html.includes('#root > *')) {
     '</style>',
     `      #root > * {
         width: 100% !important;
-        max-width: 430px !important;
+        max-width: 920px !important;
         margin-left: auto !important;
         margin-right: auto !important;
+      }
+      @media (max-width: 939px) {
+        #root > * {
+          max-width: 100% !important;
+        }
       }
     </style>`,
   );
