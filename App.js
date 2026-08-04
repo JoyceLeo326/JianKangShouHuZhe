@@ -16,6 +16,7 @@ const { buildReportModel, reportToCsv, reportToPdfBytes } = require('./src/domai
 const { validateAiResult, formatAiResult, buildEvidencePacket } = require('./src/domain/ai-governance');
 const { fingerprint, createAuditEvent, createConsentVersion, withdrawConsent, exportDataEnvelope } = require('./src/domain/privacy-audit');
 const { queueLocalSnapshot, detectSnapshotConflict, mergeNonConflictingSnapshots, resolveSnapshotConflict } = require('./src/domain/sync-queue');
+const { evaluateRecoverySituation, buildRecoveryHandoff, recoveryHandoffToText } = require('./src/domain/recovery-journey');
 
 const { width } = Dimensions.get('window');
 const WEB_MAX_WIDTH = 920;
@@ -1030,6 +1031,117 @@ function LoginScreen({ onLogin, onClose }) {
   );
 }
 
+function RecoveryJourneyCard() {
+  const [goal, setGoal] = useState('按既有计划训练并记录反馈');
+  const [pain, setPain] = useState('2');
+  const [availableMinutes, setAvailableMinutes] = useState('20');
+  const [hasApprovedPrescription, setHasApprovedPrescription] = useState(false);
+  const [redFlags, setRedFlags] = useState([]);
+  const [evaluation, setEvaluation] = useState(null);
+  const [selectedId, setSelectedId] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+  const [feeling, setFeeling] = useState('轻松');
+  const [feedbackNote, setFeedbackNote] = useState('');
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
+  const flagOptions = ['疼痛突然明显加重', '皮肤变色或明显肿胀', '呼吸困难或意识异常'];
+
+  const invalidateDecision = () => {
+    setEvaluation(null);
+    setSelectedId('');
+    setConfirmed(false);
+    setFeedbackSaved(false);
+  };
+  const toggleFlag = (flag) => {
+    setRedFlags((current) => current.includes(flag) ? current.filter((item) => item !== flag) : [...current, flag]);
+    invalidateDecision();
+  };
+  const assess = () => {
+    const result = evaluateRecoverySituation({ goal, pain, redFlags, hasApprovedPrescription, availableMinutes });
+    setEvaluation(result);
+    setSelectedId(result.candidates[0] ? result.candidates[0].id : '');
+    setConfirmed(false);
+    setFeedbackSaved(false);
+  };
+  const buildHandoff = () => buildRecoveryHandoff({
+    evaluation,
+    selectedId,
+    confirmed,
+    feedback: { feeling, note: feedbackNote },
+  });
+  const exportHandoff = async () => {
+    try {
+      const handoff = buildHandoff();
+      await saveOrShareFile({
+        content: recoveryHandoffToText(handoff),
+        filename: safeFilename(`健康守护者-今日交接单-${today}`, 'txt'),
+        mimeType: 'text/plain;charset=utf-8',
+      });
+      Alert.alert('交接单已导出', '可交给负责的医生或康复师复核，也可留作下次训练前对照。');
+    } catch (error) { Alert.alert('暂时不能导出', error.message); }
+  };
+  const saveFeedback = async () => {
+    if (!confirmed) { Alert.alert('请先人工确认', '确认本次选择后再记录完成感受。'); return; }
+    const entry = { createdAt: new Date().toISOString(), feeling, note: feedbackNote, goal, selectedId };
+    await Storage.setItem('JKSHZ_RECOVERY_FEEDBACK_V1', JSON.stringify(entry));
+    setFeedbackSaved(true);
+  };
+
+  return (
+    <View>
+      <SectionHeader num="02" eyebrow="RECOVERY JOURNEY" eyebrowColor={C.primaryDeep} title="从今天的状态，到一份可复核结果" subtitle="输入真实状态，先看风险，再由你选择和确认" />
+      <Card style={styles.journeyCard}>
+        <View style={styles.journeyStageRow} accessibilityRole="tablist">
+          {['描述状态', '查看冲突', '选择确认', '导出回流'].map((label, index) => {
+            const activeIndex = !evaluation ? 0 : !confirmed ? (selectedId ? 2 : 1) : 3;
+            return <View key={label} style={[styles.journeyStage, index <= activeIndex && styles.journeyStageActive]}><Text style={[styles.journeyStageText, index <= activeIndex && styles.journeyStageTextActive]}>{index + 1}. {label}</Text></View>;
+          })}
+        </View>
+        <InputField label="今天想完成什么" icon="flag-outline" value={goal} onChangeText={(value) => { setGoal(value); invalidateDecision(); }} placeholder="例如：按既有计划训练并记录反馈" />
+        <View style={styles.journeyTwoCol}>
+          <View style={styles.journeyCol}><InputField label="当前疼痛（0-10）" icon="pulse-outline" value={pain} onChangeText={(value) => { setPain(value); invalidateDecision(); }} keyboardType="numeric" placeholder="0" /></View>
+          <View style={styles.journeyCol}><InputField label="可用时间（分钟）" icon="time-outline" value={availableMinutes} onChangeText={(value) => { setAvailableMinutes(value); invalidateDecision(); }} keyboardType="numeric" placeholder="20" /></View>
+        </View>
+        <Text style={styles.inputLabel}>今天是否有可核验的已批准处方</Text>
+        <View style={styles.chipRow}>
+          <Chip label="已有已批准处方" active={hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(true); invalidateDecision(); }} />
+          <Chip label="没有或不确定" active={!hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(false); invalidateDecision(); }} tone="amber" />
+        </View>
+        <Text style={styles.inputLabel}>训练前异常信号</Text>
+        <View style={styles.chipRow}>{flagOptions.map((flag) => <Chip key={flag} label={flag} active={redFlags.includes(flag)} tone="coral" onPress={() => toggleFlag(flag)} />)}</View>
+        <PrimaryButton label="评估风险与候选" icon="shield-checkmark-outline" onPress={assess} />
+
+        {evaluation && (
+          <View style={styles.journeyResult} accessibilityLiveRegion="polite">
+            <View style={[styles.journeyRisk, evaluation.level === 'stop' ? styles.journeyRiskStop : evaluation.level === 'review' ? styles.journeyRiskReview : styles.journeyRiskReady]}>
+              <Text style={styles.journeyRiskEyebrow}>风险与冲突 · {evaluation.label}</Text>
+              <Text style={styles.journeyRiskText}>{evaluation.conflict}</Text>
+            </View>
+            <Text style={styles.inputLabel}>选择下一步</Text>
+            {evaluation.candidates.map((candidate) => (
+              <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: selectedId === candidate.id }} key={candidate.id} onPress={() => { setSelectedId(candidate.id); setConfirmed(false); setFeedbackSaved(false); }} style={[styles.journeyCandidate, selectedId === candidate.id && styles.journeyCandidateActive]}>
+                <Ionicons name={selectedId === candidate.id ? 'radio-button-on' : 'radio-button-off'} size={20} color={selectedId === candidate.id ? C.primaryDeep : C.faint} />
+                <View style={[styles.flex, { marginLeft: 10 }]}><Text style={styles.journeyCandidateTitle}>{candidate.title}</Text><Text style={styles.journeyCandidateText}>{candidate.description}</Text></View>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: confirmed }} onPress={() => setConfirmed((value) => !value)} style={styles.journeyConfirm}>
+              <View style={[styles.checkbox, confirmed && styles.checkboxDone]}>{confirmed && <Ionicons name="checkmark" size={14} color={C.white} />}</View>
+              <Text style={styles.journeyConfirmText}>人工确认这个选择；应用不会自动执行训练或替代专业意见</Text>
+            </TouchableOpacity>
+            <PrimaryButton disabled={!confirmed} label="导出今日交接单" icon="download-outline" onPress={exportHandoff} />
+            <View style={styles.journeyFeedback}>
+              <Text style={styles.inputLabel}>完成后的真实感受</Text>
+              <View style={styles.chipRow}>{['轻松', '适中', '疲劳', '出现不适'].map((item) => <Chip key={item} label={item} active={feeling === item} tone={item === '出现不适' ? 'coral' : undefined} onPress={() => { setFeeling(item); setFeedbackSaved(false); }} />)}</View>
+              <InputField label="补充反馈" icon="create-outline" value={feedbackNote} onChangeText={(value) => { setFeedbackNote(value); setFeedbackSaved(false); }} placeholder="只记录实际发生的情况" />
+              <PrimaryButton disabled={!confirmed} tone="ghost" label="保存到下次复盘" icon="return-down-forward-outline" onPress={saveFeedback} />
+              {feedbackSaved && <Text accessibilityLiveRegion="polite" style={styles.journeySaved}>反馈已进入下一次复盘</Text>}
+            </View>
+          </View>
+        )}
+      </Card>
+    </View>
+  );
+}
+
 /* ============================ 工作台 ============================ */
 function WorkbenchScreen({ user, patients, devices, assessments, records, reports, tasks, setTasks, engagement, setEngagement, aiConfig, openFlow, goTab, onOpenAccount, isLocal }) {
   const onlineDevices = devices.filter((d) => d.status === 'online').length;
@@ -1149,6 +1261,8 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
         </View>
         <WaveDivider color={C.bg} height={30} />
       </View>
+
+      <RecoveryJourneyCard />
 
       {/* AI 信息整理入口 */}
       <Appear delay={60}>
@@ -2985,6 +3099,29 @@ const styles = StyleSheet.create({
   appBody: { flex: 1, backgroundColor: C.bg },
   screen: { flex: 1, backgroundColor: C.bg },
   screenContent: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 120 },
+  journeyCard: { padding: 16, marginBottom: 22 },
+  journeyStageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
+  journeyStage: { backgroundColor: C.surfaceMuted, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 7 },
+  journeyStageActive: { backgroundColor: C.primaryTint },
+  journeyStageText: { color: C.faint, fontSize: 10.5, fontWeight: '800' },
+  journeyStageTextActive: { color: C.primaryDeep },
+  journeyTwoCol: { flexDirection: 'row', gap: 10 },
+  journeyCol: { flex: 1 },
+  journeyResult: { borderTopWidth: 1, borderTopColor: C.border, marginTop: 18, paddingTop: 18 },
+  journeyRisk: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16 },
+  journeyRiskStop: { backgroundColor: C.coralTint, borderColor: '#F3C3BD' },
+  journeyRiskReview: { backgroundColor: C.amberTint, borderColor: '#E6C48F' },
+  journeyRiskReady: { backgroundColor: C.primaryTint, borderColor: '#BCDCD4' },
+  journeyRiskEyebrow: { color: C.ink, fontSize: 13, fontWeight: '900', marginBottom: 6 },
+  journeyRiskText: { color: C.inkSoft, fontSize: 12.5, lineHeight: 19 },
+  journeyCandidate: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 62, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 13, marginBottom: 10 },
+  journeyCandidateActive: { backgroundColor: C.primaryTint, borderColor: C.primary },
+  journeyCandidateTitle: { color: C.ink, fontSize: 13.5, fontWeight: '900' },
+  journeyCandidateText: { color: C.muted, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
+  journeyConfirm: { flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingVertical: 10, marginBottom: 12 },
+  journeyConfirmText: { flex: 1, color: C.inkSoft, fontSize: 12, lineHeight: 18, marginLeft: 10, fontWeight: '700' },
+  journeyFeedback: { borderTopWidth: 1, borderTopColor: C.border, marginTop: 18, paddingTop: 16 },
+  journeySaved: { color: C.primaryDeep, fontSize: 12.5, fontWeight: '900', textAlign: 'center', marginTop: 10 },
 
   /* splash */
   splash: { flex: 1, alignItems: 'center', justifyContent: 'center' },

@@ -34,6 +34,23 @@ assert(!db.includes('doctor@jiankang.app'), 'the API database must not seed a fa
 assert(server.includes("const role = 'patient'"), 'public registration must receive a non-professional role');
 assert(!server.includes("req.body.role || '康复师'"), 'the API must not trust a self-selected professional role');
 
+for (const contract of [
+  'function RecoveryJourneyCard',
+  'evaluateRecoverySituation',
+  'buildRecoveryHandoff',
+  'recoveryHandoffToText',
+  '今天想完成什么',
+  '当前疼痛（0-10）',
+  '已批准处方',
+  '风险与冲突',
+  '人工确认这个选择',
+  '导出今日交接单',
+  '完成后的真实感受',
+  '反馈已进入下一次复盘',
+]) {
+  assert(app.includes(contract), `the recovery journey is missing: ${contract}`);
+}
+
 for (const phrase of ['零成本', '本地演示', '演示账号', 'AI 康复博士', '智能康复博士']) {
   assert(!app.includes(phrase), `user-facing source still contains internal or overstated copy: ${phrase}`);
 }
