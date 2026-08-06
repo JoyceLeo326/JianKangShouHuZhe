@@ -26,6 +26,7 @@ release/github-pages-deploy/
 release/google-play-submit-package-*/
 release/archive-build-history/
 release/layout-check-screenshots/
+release/recovery-web-check/
 release/tools/
 
 # Native
