@@ -16,11 +16,19 @@ const { buildReportModel, reportToCsv, reportToPdfBytes } = require('./src/domai
 const { validateAiResult, formatAiResult, buildEvidencePacket } = require('./src/domain/ai-governance');
 const { fingerprint, createAuditEvent, createConsentVersion, withdrawConsent, exportDataEnvelope } = require('./src/domain/privacy-audit');
 const { queueLocalSnapshot, detectSnapshotConflict, mergeNonConflictingSnapshots, resolveSnapshotConflict } = require('./src/domain/sync-queue');
-const { evaluateRecoverySituation, buildRecoveryHandoff, recoveryHandoffToText } = require('./src/domain/recovery-journey');
+const {
+  evaluateRecoverySituation,
+  buildRecoveryHandoff,
+  createRecoveryFeedbackRecord,
+  parseRecoveryFeedback,
+  recoveryHandoffToText,
+  summarizePriorFeedback,
+} = require('./src/domain/recovery-journey');
 
 const { width } = Dimensions.get('window');
 const WEB_MAX_WIDTH = 920;
 const APP_WIDTH = Platform.OS === 'web' ? Math.min(width, WEB_MAX_WIDTH) : width;
+const RECOVERY_FEEDBACK_KEY = 'JKSHZ_RECOVERY_FEEDBACK_V1';
 
 /* ============================================================
  * Web 平台 Alert 兜底（RN 在 Web 不渲染 Alert）
@@ -1043,7 +1051,22 @@ function RecoveryJourneyCard() {
   const [feeling, setFeeling] = useState('轻松');
   const [feedbackNote, setFeedbackNote] = useState('');
   const [feedbackSaved, setFeedbackSaved] = useState(false);
+  const [previousFeedback, setPreviousFeedback] = useState(null);
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const flagOptions = ['疼痛突然明显加重', '皮肤变色或明显肿胀', '呼吸困难或意识异常'];
+  const previousFeedbackSummary = summarizePriorFeedback(previousFeedback);
+
+  useEffect(() => {
+    let active = true;
+    Storage.getItem(RECOVERY_FEEDBACK_KEY).then((raw) => {
+      if (!active) return;
+      setPreviousFeedback(parseRecoveryFeedback(raw));
+      setFeedbackLoaded(true);
+    }).catch(() => {
+      if (active) setFeedbackLoaded(true);
+    });
+    return () => { active = false; };
+  }, []);
 
   const invalidateDecision = () => {
     setEvaluation(null);
@@ -1056,9 +1079,16 @@ function RecoveryJourneyCard() {
     invalidateDecision();
   };
   const assess = () => {
-    const result = evaluateRecoverySituation({ goal, pain, redFlags, hasApprovedPrescription, availableMinutes });
+    const result = evaluateRecoverySituation({
+      goal,
+      pain,
+      redFlags,
+      hasApprovedPrescription,
+      availableMinutes,
+      previousFeedback,
+    });
     setEvaluation(result);
-    setSelectedId(result.candidates[0] ? result.candidates[0].id : '');
+    setSelectedId(result.recommendation?.candidateId || result.candidates[0]?.id || '');
     setConfirmed(false);
     setFeedbackSaved(false);
   };
@@ -1081,9 +1111,24 @@ function RecoveryJourneyCard() {
   };
   const saveFeedback = async () => {
     if (!confirmed) { Alert.alert('请先人工确认', '确认本次选择后再记录完成感受。'); return; }
-    const entry = { createdAt: new Date().toISOString(), feeling, note: feedbackNote, goal, selectedId };
-    await Storage.setItem('JKSHZ_RECOVERY_FEEDBACK_V1', JSON.stringify(entry));
-    setFeedbackSaved(true);
+    try {
+      const entry = createRecoveryFeedbackRecord({
+        createdAt: new Date().toISOString(),
+        feeling,
+        note: feedbackNote,
+        goal,
+        selectedId,
+        pain,
+        redFlags,
+        hasApprovedPrescription,
+        availableMinutes,
+      });
+      await Storage.setItem(RECOVERY_FEEDBACK_KEY, JSON.stringify(entry));
+      setPreviousFeedback(entry);
+      setFeedbackSaved(true);
+    } catch (error) {
+      Alert.alert('反馈保存失败', error.message || '请稍后重试。');
+    }
   };
 
   return (
@@ -1095,6 +1140,22 @@ function RecoveryJourneyCard() {
             const activeIndex = !evaluation ? 0 : !confirmed ? (selectedId ? 2 : 1) : 3;
             return <View key={label} style={[styles.journeyStage, index <= activeIndex && styles.journeyStageActive]}><Text style={[styles.journeyStageText, index <= activeIndex && styles.journeyStageTextActive]}>{index + 1}. {label}</Text></View>;
           })}
+        </View>
+        <View style={styles.journeyPriorFeedback}>
+          <View style={styles.journeyPriorHeading}>
+            <Ionicons name="refresh-circle-outline" size={20} color={C.primaryDeep} />
+            <Text style={styles.journeyPriorTitle}>上次反馈会改变本次建议优先级</Text>
+          </View>
+          {!feedbackLoaded ? (
+            <Text style={styles.journeyPriorText}>正在读取本机反馈…</Text>
+          ) : previousFeedback ? (
+            <>
+              <Text style={styles.journeyPriorText}>{previousFeedbackSummary.summary}</Text>
+              <Text style={styles.journeyPriorImpact}>{previousFeedbackSummary.impact}</Text>
+            </>
+          ) : (
+            <Text style={styles.journeyPriorText}>暂无上次反馈；完成并保存后，下次打开或再次评估会从本机读取。</Text>
+          )}
         </View>
         <InputField label="今天想完成什么" icon="flag-outline" value={goal} onChangeText={(value) => { setGoal(value); invalidateDecision(); }} placeholder="例如：按既有计划训练并记录反馈" />
         <View style={styles.journeyTwoCol}>
@@ -1116,11 +1177,28 @@ function RecoveryJourneyCard() {
               <Text style={styles.journeyRiskEyebrow}>风险与冲突 · {evaluation.label}</Text>
               <Text style={styles.journeyRiskText}>{evaluation.conflict}</Text>
             </View>
+            <View style={styles.journeyRecommendation}>
+              <View style={styles.journeyRecommendationHeading}>
+                <Text style={styles.journeyRecommendationPriority}>建议优先级 · {evaluation.recommendation.priority}</Text>
+                <Badge label="根据输入排序" tone={evaluation.level === 'stop' ? 'coral' : evaluation.level === 'review' ? 'amber' : 'primary'} />
+              </View>
+              <Text style={styles.journeyWhy}>为什么优先</Text>
+              <Text style={styles.journeyRecommendationText}>{evaluation.recommendation.reason}</Text>
+              <Text style={styles.journeyPriorImpact}>{evaluation.priorFeedback.impact}</Text>
+            </View>
             <Text style={styles.inputLabel}>选择下一步</Text>
             {evaluation.candidates.map((candidate) => (
               <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: selectedId === candidate.id }} key={candidate.id} onPress={() => { setSelectedId(candidate.id); setConfirmed(false); setFeedbackSaved(false); }} style={[styles.journeyCandidate, selectedId === candidate.id && styles.journeyCandidateActive]}>
                 <Ionicons name={selectedId === candidate.id ? 'radio-button-on' : 'radio-button-off'} size={20} color={selectedId === candidate.id ? C.primaryDeep : C.faint} />
-                <View style={[styles.flex, { marginLeft: 10 }]}><Text style={styles.journeyCandidateTitle}>{candidate.title}</Text><Text style={styles.journeyCandidateText}>{candidate.description}</Text></View>
+                <View style={styles.journeyCandidateBody}>
+                  <View style={styles.journeyCandidateHeading}>
+                    <Text style={styles.journeyCandidateTitle}>{candidate.rank}. {candidate.title}</Text>
+                    {candidate.id === evaluation.recommendation.candidateId && <Badge label="建议优先" tone={evaluation.level === 'stop' ? 'coral' : 'primary'} />}
+                  </View>
+                  <Text style={styles.journeyCandidateText}>{candidate.description}</Text>
+                  <Text style={styles.journeyCandidateBenefit}>收益：{candidate.benefit}</Text>
+                  <Text style={styles.journeyCandidateTradeoff}>权衡：{candidate.tradeoff}</Text>
+                </View>
               </TouchableOpacity>
             ))}
             <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: confirmed }} onPress={() => setConfirmed((value) => !value)} style={styles.journeyConfirm}>
@@ -3105,8 +3183,13 @@ const styles = StyleSheet.create({
   journeyStageActive: { backgroundColor: C.primaryTint },
   journeyStageText: { color: C.faint, fontSize: 10.5, fontWeight: '800' },
   journeyStageTextActive: { color: C.primaryDeep },
-  journeyTwoCol: { flexDirection: 'row', gap: 10 },
-  journeyCol: { flex: 1 },
+  journeyPriorFeedback: { backgroundColor: C.bgSoft, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 13, marginBottom: 16 },
+  journeyPriorHeading: { flexDirection: 'row', alignItems: 'center', marginBottom: 7 },
+  journeyPriorTitle: { flex: 1, minWidth: 0, color: C.ink, fontSize: 13, lineHeight: 18, fontWeight: '900', marginLeft: 7 },
+  journeyPriorText: { color: C.inkSoft, fontSize: 12, lineHeight: 18 },
+  journeyPriorImpact: { color: C.primaryDeep, fontSize: 11.5, lineHeight: 17, fontWeight: '800', marginTop: 5 },
+  journeyTwoCol: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  journeyCol: { flex: 1, minWidth: 120 },
   journeyResult: { borderTopWidth: 1, borderTopColor: C.border, marginTop: 18, paddingTop: 18 },
   journeyRisk: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16 },
   journeyRiskStop: { backgroundColor: C.coralTint, borderColor: '#F3C3BD' },
@@ -3114,10 +3197,19 @@ const styles = StyleSheet.create({
   journeyRiskReady: { backgroundColor: C.primaryTint, borderColor: '#BCDCD4' },
   journeyRiskEyebrow: { color: C.ink, fontSize: 13, fontWeight: '900', marginBottom: 6 },
   journeyRiskText: { color: C.inkSoft, fontSize: 12.5, lineHeight: 19 },
+  journeyRecommendation: { backgroundColor: C.surfaceMuted, borderRadius: 14, padding: 13, marginBottom: 16 },
+  journeyRecommendationHeading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  journeyRecommendationPriority: { flex: 1, minWidth: 150, color: C.ink, fontSize: 13, lineHeight: 19, fontWeight: '900' },
+  journeyWhy: { color: C.primaryDeep, fontSize: 11, fontWeight: '900', marginTop: 9, marginBottom: 3 },
+  journeyRecommendationText: { color: C.inkSoft, fontSize: 12, lineHeight: 18 },
   journeyCandidate: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 62, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 13, marginBottom: 10 },
   journeyCandidateActive: { backgroundColor: C.primaryTint, borderColor: C.primary },
-  journeyCandidateTitle: { color: C.ink, fontSize: 13.5, fontWeight: '900' },
+  journeyCandidateBody: { flex: 1, minWidth: 0, marginLeft: 10 },
+  journeyCandidateHeading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
+  journeyCandidateTitle: { flex: 1, minWidth: 140, color: C.ink, fontSize: 13.5, lineHeight: 19, fontWeight: '900' },
   journeyCandidateText: { color: C.muted, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
+  journeyCandidateBenefit: { color: C.primaryDeep, fontSize: 11, lineHeight: 16, marginTop: 7, fontWeight: '700' },
+  journeyCandidateTradeoff: { color: C.amberDeep, fontSize: 11, lineHeight: 16, marginTop: 3, fontWeight: '700' },
   journeyConfirm: { flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingVertical: 10, marginBottom: 12 },
   journeyConfirmText: { flex: 1, color: C.inkSoft, fontSize: 12, lineHeight: 18, marginLeft: 10, fontWeight: '700' },
   journeyFeedback: { borderTopWidth: 1, borderTopColor: C.border, marginTop: 18, paddingTop: 16 },
@@ -3317,7 +3409,7 @@ const styles = StyleSheet.create({
 
   /* chip */
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, marginRight: 8, marginBottom: 9 },
+  chip: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, marginRight: 8, marginBottom: 9 },
   chipText: { fontSize: 13, color: C.muted, fontWeight: '700' },
 
   /* buttons */

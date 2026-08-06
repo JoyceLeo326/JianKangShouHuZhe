@@ -47,9 +47,16 @@ for (const contract of [
   '导出今日交接单',
   '完成后的真实感受',
   '反馈已进入下一次复盘',
+  'Storage.getItem(RECOVERY_FEEDBACK_KEY)',
+  '上次反馈会改变本次建议优先级',
+  '为什么优先',
+  '收益：',
+  '权衡：',
 ]) {
   assert(app.includes(contract), `the recovery journey is missing: ${contract}`);
 }
+
+assert(app.includes('minHeight: 44'), 'interactive recovery controls must keep a 44px mobile touch target');
 
 for (const phrase of ['零成本', '本地演示', '演示账号', 'AI 康复博士', '智能康复博士']) {
   assert(!app.includes(phrase), `user-facing source still contains internal or overstated copy: ${phrase}`);
