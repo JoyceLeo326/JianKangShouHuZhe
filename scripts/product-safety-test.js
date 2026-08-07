@@ -1,10 +1,13 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const root = path.resolve(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'App.js'), 'utf8');
 const server = fs.readFileSync(path.join(root, 'server', 'index.js'), 'utf8');
 const db = fs.readFileSync(path.join(root, 'server', 'db.js'), 'utf8');
+const recoveryDomain = fs.readFileSync(path.join(root, 'src', 'domain', 'recovery-journey.js'), 'utf8');
+const recoveryStoryDir = path.join(root, 'assets', 'recovery-story');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -58,8 +61,29 @@ for (const contract of [
 
 assert(app.includes('minHeight: 44'), 'interactive recovery controls must keep a 44px mobile touch target');
 
-for (const phrase of ['零成本', '本地演示', '演示账号', 'AI 康复博士', '智能康复博士']) {
-  assert(!app.includes(phrase), `user-facing source still contains internal or overstated copy: ${phrase}`);
+const recoveryStoryFiles = fs.readdirSync(recoveryStoryDir).filter((name) => name.endsWith('.webp')).sort();
+assert(recoveryStoryFiles.length === 24, `the recovery story must contain exactly 24 WebP scenes, found ${recoveryStoryFiles.length}`);
+const storyHashes = recoveryStoryFiles.map((name) => crypto.createHash('sha256').update(fs.readFileSync(path.join(recoveryStoryDir, name))).digest('hex'));
+assert(new Set(storyHashes).size === 24, 'every recovery story scene must be an independent image');
+for (const [index, name] of recoveryStoryFiles.entries()) {
+  assert(name.startsWith(String(index + 1).padStart(2, '0')), `recovery story scene numbering is incomplete at ${name}`);
+  assert(app.includes(`./assets/recovery-story/${name}`), `the recovery UI does not reference scene: ${name}`);
+}
+for (const contract of [
+  'function RecoveryStoryGallery',
+  'activeStoryIndex',
+  'setActiveStoryIndex',
+  'recoveryStoryImageLoaded',
+  'onLoadStart',
+  'onLoad',
+]) {
+  assert(app.includes(contract), `the state-bound lazy recovery story is missing: ${contract}`);
+}
+
+for (const phrase of ['无需登录', '无需注册', '零成本', '本地演示', '演示账号', 'AI 康复博士', '智能康复博士']) {
+  for (const [sourceName, source] of [['App.js', app], ['src/domain/recovery-journey.js', recoveryDomain]]) {
+    assert(!source.includes(phrase), `${sourceName} still contains internal or overstated copy: ${phrase}`);
+  }
 }
 
 console.log('Product safety test passed: guest-first access, clinical boundaries, and empty real-data defaults are enforced.');
