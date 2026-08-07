@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert, Animated, Dimensions, Easing, KeyboardAvoidingView, Linking, Modal, Platform,
-  SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput,
+  Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput,
   TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -1039,6 +1039,105 @@ function LoginScreen({ onLogin, onClose }) {
   );
 }
 
+const RECOVERY_STORY_SCENES = [
+  { id: '01', stage: '准备', title: '确定今天的目标', caption: '先把今天真正想完成的事说清楚。', image: require('./assets/recovery-story/01-intention-setting.webp') },
+  { id: '02', stage: '准备', title: '观察手部状态', caption: '记录当下感受，不猜测原因。', image: require('./assets/recovery-story/02-hand-self-check.webp') },
+  { id: '03', stage: '准备', title: '回看疼痛变化', caption: '用同一量表留下可比较的数字。', image: require('./assets/recovery-story/03-pain-reflection.webp') },
+  { id: '04', stage: '准备', title: '核对可用时间', caption: '时间不足时不擅自压缩专业方案。', image: require('./assets/recovery-story/04-time-planning.webp') },
+  { id: '05', stage: '准备', title: '核验既有方案', caption: '只以可核验的已批准处方作为边界。', image: require('./assets/recovery-story/05-plan-verification.webp') },
+  { id: '06', stage: '安全', title: '检查异常信号', caption: '把停止与求助边界放在选择之前。', image: require('./assets/recovery-story/06-warning-sign-check.webp') },
+  { id: '07', stage: '安全', title: '出现风险先暂停', caption: '异常或高疼痛时，先停止并寻求专业判断。', image: require('./assets/recovery-story/07-safe-pause.webp') },
+  { id: '08', stage: '安全', title: '等待专业确认', caption: '缺少有效方案时，先记录并联系康复团队。', image: require('./assets/recovery-story/08-professional-checkin.webp') },
+  { id: '09', stage: '选择', title: '并排比较候选', caption: '同时看见收益、代价和安全边界。', image: require('./assets/recovery-story/09-options-comparison.webp') },
+  { id: '10', stage: '选择', title: '选择更合适的一步', caption: '建议负责排序，最终选择仍由你确认。', image: require('./assets/recovery-story/10-safe-choice.webp') },
+  { id: '11', stage: '确认', title: '留下人工确认', caption: '应用不会替你执行训练或作出医疗决定。', image: require('./assets/recovery-story/11-human-confirmation.webp') },
+  { id: '12', stage: '确认', title: '按既有方案做准备', caption: '开始前再次核对环境、状态和方案版本。', image: require('./assets/recovery-story/12-session-preparation.webp') },
+  { id: '13', stage: '执行', title: '在批准边界内进行', caption: '只执行专业人员已经确认的内容。', image: require('./assets/recovery-story/13-approved-session.webp') },
+  { id: '14', stage: '执行', title: '需要时主动休息', caption: '不以完成进度覆盖身体发出的信号。', image: require('./assets/recovery-story/14-rest-break.webp') },
+  { id: '15', stage: '反馈', title: '记录实际完成情况', caption: '完成与否都是真实且有用的复盘信息。', image: require('./assets/recovery-story/15-completion-log.webp') },
+  { id: '16', stage: '反馈', title: '记录轻松感受', caption: '如实留下舒适体验，供下次对照。', image: require('./assets/recovery-story/16-comfort-feedback.webp') },
+  { id: '17', stage: '反馈', title: '记录疲劳感受', caption: '下一次先确认恢复情况，再决定是否继续。', image: require('./assets/recovery-story/17-fatigue-feedback.webp') },
+  { id: '18', stage: '反馈', title: '不适时停止推进', caption: '记录发生了什么，并把复盘优先级提前。', image: require('./assets/recovery-story/18-discomfort-stop.webp') },
+  { id: '19', stage: '回流', title: '保存结构化反馈', caption: '本次选择与感受会进入下一轮判断。', image: require('./assets/recovery-story/19-local-feedback-save.webp') },
+  { id: '20', stage: '回流', title: '下次复盘先读反馈', caption: '重新评估时先带回上一次的真实结果。', image: require('./assets/recovery-story/20-next-review-recall.webp') },
+  { id: '21', stage: '回流', title: '根据反馈调整优先级', caption: '疲劳或不适会让复盘排在继续训练之前。', image: require('./assets/recovery-story/21-priority-reorder.webp') },
+  { id: '22', stage: '交接', title: '交给专业人员复核', caption: '把目标、风险、选择与反馈放进同一份上下文。', image: require('./assets/recovery-story/22-professional-handoff.webp') },
+  { id: '23', stage: '交接', title: '导出真实交接单', caption: '生成可下载文件，供复核或下次训练前对照。', image: require('./assets/recovery-story/23-real-download.webp') },
+  { id: '24', stage: '继续', title: '带着记录继续前行', caption: '每轮反馈都让下一次判断更有依据。', image: require('./assets/recovery-story/24-continuing-journey.webp') },
+];
+
+function RecoveryStoryGallery({ activeStoryIndex, setActiveStoryIndex }) {
+  const [recoveryStoryImageLoaded, setRecoveryStoryImageLoaded] = useState(false);
+  const safeIndex = Math.max(0, Math.min(RECOVERY_STORY_SCENES.length - 1, activeStoryIndex));
+  const scene = RECOVERY_STORY_SCENES[safeIndex];
+
+  useEffect(() => {
+    setRecoveryStoryImageLoaded(false);
+  }, [safeIndex]);
+
+  const moveTo = (nextIndex) => {
+    setActiveStoryIndex(Math.max(0, Math.min(RECOVERY_STORY_SCENES.length - 1, nextIndex)));
+  };
+
+  return (
+    <View style={styles.recoveryStory} accessibilityLabel="康复旅程叙事画廊">
+      <View style={styles.recoveryStoryHeading}>
+        <View style={styles.recoveryStoryHeadingText}>
+          <Text style={styles.recoveryStoryEyebrow}>{scene.stage} · 第 {safeIndex + 1}/24 幕</Text>
+          <Text style={styles.recoveryStoryTitle}>{scene.title}</Text>
+        </View>
+        <Badge label="状态联动" tone="primary" />
+      </View>
+      <View style={styles.recoveryStoryFrame}>
+        {!recoveryStoryImageLoaded && (
+          <View style={styles.recoveryStoryPlaceholder}>
+            <Ionicons name="image-outline" size={24} color={C.faint} />
+            <Text style={styles.recoveryStoryPlaceholderText}>正在加载当前画面…</Text>
+          </View>
+        )}
+        <Image
+          key={scene.id}
+          source={scene.image}
+          resizeMode="cover"
+          accessibilityLabel={`康复叙事画面：${scene.title}`}
+          {...(Platform.OS === 'web'
+            ? { dataSet: { recoveryStoryScene: scene.id, recoveryStoryLoaded: recoveryStoryImageLoaded ? 'true' : 'false' } }
+            : { testID: `recovery-story-scene-${scene.id}` })}
+          onLoadStart={() => setRecoveryStoryImageLoaded(false)}
+          onLoad={() => setRecoveryStoryImageLoaded(true)}
+          style={[styles.recoveryStoryImage, !recoveryStoryImageLoaded && styles.recoveryStoryImageLoading]}
+        />
+      </View>
+      <Text style={styles.recoveryStoryCaption}>{scene.caption}</Text>
+      <Text style={styles.recoveryStoryLazyNote}>一次只加载当前一幕；评估和反馈会自动切换画面。</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recoveryStoryRail} contentContainerStyle={styles.recoveryStoryRailContent}>
+        {RECOVERY_STORY_SCENES.map((item, index) => (
+          <TouchableOpacity
+            key={item.id}
+            accessibilityLabel={`查看康复叙事第 ${index + 1} 幕：${item.title}`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: index === safeIndex }}
+            onPress={() => moveTo(index)}
+            style={[styles.recoveryStoryChapter, index === safeIndex && styles.recoveryStoryChapterActive]}
+          >
+            <Text style={[styles.recoveryStoryChapterText, index === safeIndex && styles.recoveryStoryChapterTextActive]}>{item.id}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <View style={styles.recoveryStoryControls}>
+        <TouchableOpacity accessibilityLabel="上一幕" accessibilityRole="button" disabled={safeIndex === 0} onPress={() => moveTo(safeIndex - 1)} style={[styles.recoveryStoryControl, safeIndex === 0 && styles.recoveryStoryControlDisabled]}>
+          <Ionicons name="chevron-back" size={18} color={C.primaryDeep} />
+          <Text style={styles.recoveryStoryControlText}>上一幕</Text>
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityLabel="下一幕" accessibilityRole="button" disabled={safeIndex === RECOVERY_STORY_SCENES.length - 1} onPress={() => moveTo(safeIndex + 1)} style={[styles.recoveryStoryControl, safeIndex === RECOVERY_STORY_SCENES.length - 1 && styles.recoveryStoryControlDisabled]}>
+          <Text style={styles.recoveryStoryControlText}>下一幕</Text>
+          <Ionicons name="chevron-forward" size={18} color={C.primaryDeep} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 function RecoveryJourneyCard() {
   const [goal, setGoal] = useState('按既有计划训练并记录反馈');
   const [pain, setPain] = useState('2');
@@ -1053,6 +1152,7 @@ function RecoveryJourneyCard() {
   const [feedbackSaved, setFeedbackSaved] = useState(false);
   const [previousFeedback, setPreviousFeedback] = useState(null);
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
   const flagOptions = ['疼痛突然明显加重', '皮肤变色或明显肿胀', '呼吸困难或意识异常'];
   const previousFeedbackSummary = summarizePriorFeedback(previousFeedback);
 
@@ -1060,7 +1160,9 @@ function RecoveryJourneyCard() {
     let active = true;
     Storage.getItem(RECOVERY_FEEDBACK_KEY).then((raw) => {
       if (!active) return;
-      setPreviousFeedback(parseRecoveryFeedback(raw));
+      const storedFeedback = parseRecoveryFeedback(raw);
+      setPreviousFeedback(storedFeedback);
+      if (storedFeedback) setActiveStoryIndex(19);
       setFeedbackLoaded(true);
     }).catch(() => {
       if (active) setFeedbackLoaded(true);
@@ -1076,6 +1178,7 @@ function RecoveryJourneyCard() {
   };
   const toggleFlag = (flag) => {
     setRedFlags((current) => current.includes(flag) ? current.filter((item) => item !== flag) : [...current, flag]);
+    setActiveStoryIndex(5);
     invalidateDecision();
   };
   const assess = () => {
@@ -1091,6 +1194,7 @@ function RecoveryJourneyCard() {
     setSelectedId(result.recommendation?.candidateId || result.candidates[0]?.id || '');
     setConfirmed(false);
     setFeedbackSaved(false);
+    setActiveStoryIndex(result.level === 'stop' ? 6 : result.priorFeedback.status === 'needs_review' ? 20 : result.level === 'review' ? 7 : 8);
   };
   const buildHandoff = () => buildRecoveryHandoff({
     evaluation,
@@ -1100,6 +1204,7 @@ function RecoveryJourneyCard() {
   });
   const exportHandoff = async () => {
     try {
+      setActiveStoryIndex(22);
       const handoff = buildHandoff();
       await saveOrShareFile({
         content: recoveryHandoffToText(handoff),
@@ -1126,6 +1231,7 @@ function RecoveryJourneyCard() {
       await Storage.setItem(RECOVERY_FEEDBACK_KEY, JSON.stringify(entry));
       setPreviousFeedback(entry);
       setFeedbackSaved(true);
+      setActiveStoryIndex(18);
     } catch (error) {
       Alert.alert('反馈保存失败', error.message || '请稍后重试。');
     }
@@ -1135,6 +1241,7 @@ function RecoveryJourneyCard() {
     <View>
       <SectionHeader num="02" eyebrow="RECOVERY JOURNEY" eyebrowColor={C.primaryDeep} title="从今天的状态，到一份可复核结果" subtitle="输入真实状态，先看风险，再由你选择和确认" />
       <Card style={styles.journeyCard}>
+        <RecoveryStoryGallery activeStoryIndex={activeStoryIndex} setActiveStoryIndex={setActiveStoryIndex} />
         <View style={styles.journeyStageRow} accessibilityRole="tablist">
           {['描述状态', '查看冲突', '选择确认', '导出回流'].map((label, index) => {
             const activeIndex = !evaluation ? 0 : !confirmed ? (selectedId ? 2 : 1) : 3;
@@ -1157,15 +1264,15 @@ function RecoveryJourneyCard() {
             <Text style={styles.journeyPriorText}>暂无上次反馈；完成并保存后，下次打开或再次评估会从本机读取。</Text>
           )}
         </View>
-        <InputField label="今天想完成什么" icon="flag-outline" value={goal} onChangeText={(value) => { setGoal(value); invalidateDecision(); }} placeholder="例如：按既有计划训练并记录反馈" />
+        <InputField label="今天想完成什么" icon="flag-outline" value={goal} onChangeText={(value) => { setGoal(value); setActiveStoryIndex(0); invalidateDecision(); }} placeholder="例如：按既有计划训练并记录反馈" />
         <View style={styles.journeyTwoCol}>
-          <View style={styles.journeyCol}><InputField label="当前疼痛（0-10）" icon="pulse-outline" value={pain} onChangeText={(value) => { setPain(value); invalidateDecision(); }} keyboardType="numeric" placeholder="0" /></View>
-          <View style={styles.journeyCol}><InputField label="可用时间（分钟）" icon="time-outline" value={availableMinutes} onChangeText={(value) => { setAvailableMinutes(value); invalidateDecision(); }} keyboardType="numeric" placeholder="20" /></View>
+          <View style={styles.journeyCol}><InputField label="当前疼痛（0-10）" icon="pulse-outline" value={pain} onChangeText={(value) => { setPain(value); setActiveStoryIndex(2); invalidateDecision(); }} keyboardType="numeric" placeholder="0" /></View>
+          <View style={styles.journeyCol}><InputField label="可用时间（分钟）" icon="time-outline" value={availableMinutes} onChangeText={(value) => { setAvailableMinutes(value); setActiveStoryIndex(3); invalidateDecision(); }} keyboardType="numeric" placeholder="20" /></View>
         </View>
         <Text style={styles.inputLabel}>今天是否有可核验的已批准处方</Text>
         <View style={styles.chipRow}>
-          <Chip label="已有已批准处方" active={hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(true); invalidateDecision(); }} />
-          <Chip label="没有或不确定" active={!hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(false); invalidateDecision(); }} tone="amber" />
+          <Chip label="已有已批准处方" active={hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(true); setActiveStoryIndex(4); invalidateDecision(); }} />
+          <Chip label="没有或不确定" active={!hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(false); setActiveStoryIndex(4); invalidateDecision(); }} tone="amber" />
         </View>
         <Text style={styles.inputLabel}>训练前异常信号</Text>
         <View style={styles.chipRow}>{flagOptions.map((flag) => <Chip key={flag} label={flag} active={redFlags.includes(flag)} tone="coral" onPress={() => toggleFlag(flag)} />)}</View>
@@ -1188,7 +1295,7 @@ function RecoveryJourneyCard() {
             </View>
             <Text style={styles.inputLabel}>选择下一步</Text>
             {evaluation.candidates.map((candidate) => (
-              <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: selectedId === candidate.id }} key={candidate.id} onPress={() => { setSelectedId(candidate.id); setConfirmed(false); setFeedbackSaved(false); }} style={[styles.journeyCandidate, selectedId === candidate.id && styles.journeyCandidateActive]}>
+              <TouchableOpacity accessibilityLabel={`选择方案：${candidate.title}`} accessibilityRole="radio" accessibilityState={{ selected: selectedId === candidate.id }} key={candidate.id} onPress={() => { setSelectedId(candidate.id); setConfirmed(false); setFeedbackSaved(false); setActiveStoryIndex(candidate.id === 'contact_team' ? 21 : 9); }} style={[styles.journeyCandidate, selectedId === candidate.id && styles.journeyCandidateActive]}>
                 <Ionicons name={selectedId === candidate.id ? 'radio-button-on' : 'radio-button-off'} size={20} color={selectedId === candidate.id ? C.primaryDeep : C.faint} />
                 <View style={styles.journeyCandidateBody}>
                   <View style={styles.journeyCandidateHeading}>
@@ -1201,14 +1308,14 @@ function RecoveryJourneyCard() {
                 </View>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: confirmed }} onPress={() => setConfirmed((value) => !value)} style={styles.journeyConfirm}>
+            <TouchableOpacity accessibilityLabel="人工确认这个选择" accessibilityRole="checkbox" accessibilityState={{ checked: confirmed }} onPress={() => { const nextConfirmed = !confirmed; setConfirmed(nextConfirmed); if (nextConfirmed) setActiveStoryIndex(10); }} style={styles.journeyConfirm}>
               <View style={[styles.checkbox, confirmed && styles.checkboxDone]}>{confirmed && <Ionicons name="checkmark" size={14} color={C.white} />}</View>
               <Text style={styles.journeyConfirmText}>人工确认这个选择；应用不会自动执行训练或替代专业意见</Text>
             </TouchableOpacity>
             <PrimaryButton disabled={!confirmed} label="导出今日交接单" icon="download-outline" onPress={exportHandoff} />
             <View style={styles.journeyFeedback}>
               <Text style={styles.inputLabel}>完成后的真实感受</Text>
-              <View style={styles.chipRow}>{['轻松', '适中', '疲劳', '出现不适'].map((item) => <Chip key={item} label={item} active={feeling === item} tone={item === '出现不适' ? 'coral' : undefined} onPress={() => { setFeeling(item); setFeedbackSaved(false); }} />)}</View>
+              <View style={styles.chipRow}>{['轻松', '适中', '疲劳', '出现不适'].map((item) => <Chip key={item} label={item} active={feeling === item} tone={item === '出现不适' ? 'coral' : undefined} onPress={() => { setFeeling(item); setFeedbackSaved(false); setActiveStoryIndex(item === '轻松' ? 15 : item === '疲劳' ? 16 : item === '出现不适' ? 17 : 14); }} />)}</View>
               <InputField label="补充反馈" icon="create-outline" value={feedbackNote} onChangeText={(value) => { setFeedbackNote(value); setFeedbackSaved(false); }} placeholder="只记录实际发生的情况" />
               <PrimaryButton disabled={!confirmed} tone="ghost" label="保存到下次复盘" icon="return-down-forward-outline" onPress={saveFeedback} />
               {feedbackSaved && <Text accessibilityLiveRegion="polite" style={styles.journeySaved}>反馈已进入下一次复盘</Text>}
@@ -3178,6 +3285,28 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   screenContent: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 120 },
   journeyCard: { padding: 16, marginBottom: 22 },
+  recoveryStory: { minWidth: 0, backgroundColor: C.bgSoft, borderWidth: 1, borderColor: C.border, borderRadius: 18, padding: 12, marginBottom: 16, overflow: 'hidden' },
+  recoveryStoryHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 10 },
+  recoveryStoryHeadingText: { flex: 1, minWidth: 0 },
+  recoveryStoryEyebrow: { color: C.primaryDeep, fontSize: 10.5, lineHeight: 15, fontWeight: '900', letterSpacing: 0.6 },
+  recoveryStoryTitle: { color: C.ink, fontSize: 17, lineHeight: 23, fontWeight: '900', marginTop: 2 },
+  recoveryStoryFrame: { position: 'relative', width: '100%', maxWidth: '100%', aspectRatio: 1.5, borderRadius: 14, backgroundColor: C.surfaceMuted, overflow: 'hidden' },
+  recoveryStoryPlaceholder: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surfaceMuted },
+  recoveryStoryPlaceholderText: { color: C.faint, fontSize: 11.5, fontWeight: '700', marginTop: 6 },
+  recoveryStoryImage: { width: '100%', height: '100%' },
+  recoveryStoryImageLoading: { opacity: 0 },
+  recoveryStoryCaption: { color: C.inkSoft, fontSize: 12.5, lineHeight: 19, fontWeight: '700', marginTop: 10 },
+  recoveryStoryLazyNote: { color: C.faint, fontSize: 10.5, lineHeight: 16, marginTop: 3 },
+  recoveryStoryRail: { width: '100%', maxWidth: '100%', marginTop: 10 },
+  recoveryStoryRailContent: { alignItems: 'center', paddingRight: 4 },
+  recoveryStoryChapter: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, marginRight: 6 },
+  recoveryStoryChapterActive: { backgroundColor: C.primaryDeep, borderColor: C.primaryDeep },
+  recoveryStoryChapterText: { color: C.muted, fontSize: 11.5, fontWeight: '900' },
+  recoveryStoryChapterTextActive: { color: C.white },
+  recoveryStoryControls: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginTop: 10 },
+  recoveryStoryControl: { flex: 1, minWidth: 0, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: C.surface, paddingHorizontal: 10 },
+  recoveryStoryControlDisabled: { opacity: 0.42 },
+  recoveryStoryControlText: { color: C.primaryDeep, fontSize: 12, fontWeight: '900' },
   journeyStageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   journeyStage: { backgroundColor: C.surfaceMuted, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 7 },
   journeyStageActive: { backgroundColor: C.primaryTint },
@@ -3568,7 +3697,7 @@ const styles = StyleSheet.create({
   modalReportTitle: { color: C.ink, fontSize: 17, fontWeight: '800', marginBottom: 14 },
 
   /* tab bar */
-  tabBarWrap: { position: 'absolute', left: 16, right: 16, bottom: Platform.OS === 'ios' ? 26 : 16 },
+  tabBarWrap: { paddingHorizontal: 16, paddingTop: 30, paddingBottom: Platform.OS === 'ios' ? 20 : 12, backgroundColor: C.bg },
   tabBar: { height: 66, borderRadius: 22, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, ...SHADOW.raised },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tabIcon: { width: 38, height: 30, alignItems: 'center', justifyContent: 'center' },

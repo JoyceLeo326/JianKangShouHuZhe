@@ -76,7 +76,8 @@ function startStaticServer() {
         const extension = path.extname(filePath);
         const type = extension === '.js' ? 'text/javascript; charset=utf-8'
           : extension === '.html' ? 'text/html; charset=utf-8'
-            : extension === '.ttf' ? 'font/ttf' : 'application/octet-stream';
+            : extension === '.ttf' ? 'font/ttf'
+              : extension === '.webp' ? 'image/webp' : 'application/octet-stream';
         response.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
         response.end(body);
       });
@@ -161,28 +162,68 @@ async function waitForExpression(page, expression, message, timeoutMs = 15000) {
 }
 
 async function clickLabel(page, label) {
-  const clicked = await page.evaluate(`(() => {
+  const outcome = await page.evaluate(`(() => {
     const target = Array.from(document.querySelectorAll('[aria-label]'))
       .find((element) => element.getAttribute('aria-label') === ${JSON.stringify(label)});
-    if (!target) return false;
+    if (!target) return { found: false };
     target.scrollIntoView({ block: 'center' });
+    const rect = target.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const pointerReachable = Boolean(hit && (hit === target || target.contains(hit)));
     target.click();
-    return true;
+    return { found: true, pointerReachable };
   })()`);
-  assert(clicked, `Could not find control: ${label}`);
+  assert(outcome?.found, `Could not find control: ${label}`);
+  assert(outcome.pointerReachable, `Control is visually blocked after scrolling into view: ${label}`);
   await wait(180);
 }
 
-async function clickRole(page, role) {
+async function clickStoryScene(page, number) {
+  const prefix = `查看康复叙事第 ${number} 幕：`;
   const clicked = await page.evaluate(`(() => {
-    const target = document.querySelector('[role=${JSON.stringify(role)}]');
+    const target = Array.from(document.querySelectorAll('[aria-label]'))
+      .find((element) => element.getAttribute('aria-label').startsWith(${JSON.stringify(prefix)}));
     if (!target) return false;
-    target.scrollIntoView({ block: 'center' });
+    target.scrollIntoView({ block: 'center', inline: 'center' });
+    const rect = target.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const pointerReachable = Boolean(hit && (hit === target || target.contains(hit)));
     target.click();
-    return true;
+    return pointerReachable;
   })()`);
-  assert(clicked, `Could not find role: ${role}`);
-  await wait(180);
+  assert(clicked, `Recovery story scene ${number} is missing or visually blocked.`);
+  const sceneId = String(number).padStart(2, '0');
+  await waitForExpression(
+    page,
+    `document.querySelector('[data-recovery-story-scene="${sceneId}"][data-recovery-story-loaded="true"]')`,
+    `Recovery story scene ${sceneId} did not finish loading.`,
+  );
+  return page.evaluate(`(() => {
+    const element = document.querySelector('[data-recovery-story-scene="${sceneId}"]');
+    const nestedImage = element && element.querySelector('img');
+    const background = element ? getComputedStyle(element).backgroundImage : '';
+    return {
+      scene: element && element.getAttribute('data-recovery-story-scene'),
+      source: (nestedImage && (nestedImage.currentSrc || nestedImage.src)) || background || '',
+    };
+  })()`);
+}
+
+async function focusLabel(page, label) {
+  return page.evaluate(`(() => {
+    const target = Array.from(document.querySelectorAll('[aria-label]'))
+      .find((element) => element.getAttribute('aria-label') === ${JSON.stringify(label)});
+    if (!target) return null;
+    target.scrollIntoView({ block: 'center' });
+    target.focus();
+    const rect = target.getBoundingClientRect();
+    return {
+      active: document.activeElement === target,
+      top: Math.round(rect.top),
+      bottom: Math.round(rect.bottom),
+      visualViewportHeight: Math.round(window.visualViewport ? window.visualViewport.height : window.innerHeight),
+    };
+  })()`);
 }
 
 async function setViewport(page, viewport) {
@@ -199,25 +240,51 @@ async function inspectLayout(page) {
   return page.evaluate(`(() => {
     const width = document.documentElement.clientWidth;
     const labels = [
+      '今天想完成什么', '当前疼痛（0-10）', '可用时间（分钟）',
       '已有已批准处方', '没有或不确定', '疼痛突然明显加重', '皮肤变色或明显肿胀',
-      '呼吸困难或意识异常', '评估风险与候选', '导出今日交接单', '保存到下次复盘'
+      '呼吸困难或意识异常', '评估风险与候选', '人工确认这个选择',
+      '导出今日交接单', '保存到下次复盘', '上一幕', '下一幕',
+      '工作台', '患者', '训练', '洞察', '我的'
     ];
     const labelled = labels.map((label) => Array.from(document.querySelectorAll('[aria-label]'))
       .find((element) => element.getAttribute('aria-label') === label)).filter(Boolean);
+    const storyControls = Array.from(document.querySelectorAll('[aria-label^="查看康复叙事第 "]'));
     const decisionControls = Array.from(document.querySelectorAll('[role="radio"], [role="checkbox"]'));
-    const controls = Array.from(new Set([...labelled, ...decisionControls]));
+    const controls = Array.from(new Set([...labelled, ...storyControls, ...decisionControls]));
     const targets = controls.map((element) => {
       const rect = element.getBoundingClientRect();
-      return { label: element.getAttribute('aria-label') || element.getAttribute('role'), width: Math.round(rect.width), height: Math.round(rect.height) };
-    });
+      const style = getComputedStyle(element);
+      return {
+        element,
+        label: element.getAttribute('aria-label') || element.getAttribute('role'),
+        left: Math.round(rect.left), top: Math.round(rect.top), right: Math.round(rect.right), bottom: Math.round(rect.bottom),
+        width: Math.round(rect.width), height: Math.round(rect.height),
+        visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none',
+      };
+    }).filter((target) => target.visible);
+    const tabTargets = targets.filter((target) => ['工作台', '患者', '训练', '洞察', '我的'].includes(target.label));
+    const navBounds = tabTargets.length ? {
+      top: Math.min(...tabTargets.map((target) => target.top)),
+      bottom: Math.max(...tabTargets.map((target) => target.bottom)),
+    } : null;
+    const blockedByNav = navBounds ? targets.filter((target) => {
+      if (['工作台', '患者', '训练', '洞察', '我的'].includes(target.label)) return false;
+      if (target.bottom <= navBounds.top || target.top >= navBounds.bottom) return false;
+      const x = Math.max(1, Math.min(window.innerWidth - 1, (target.left + target.right) / 2));
+      const y = (Math.max(target.top, navBounds.top) + Math.min(target.bottom, navBounds.bottom)) / 2;
+      return document.elementsFromPoint(x, y).some((element) => element === target.element || target.element.contains(element));
+    }).map((target) => target.label) : [];
     return {
       viewportWidth: width,
       documentScrollWidth: document.documentElement.scrollWidth,
       bodyScrollWidth: document.body.scrollWidth,
       overflowX: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - width,
       undersized: targets.filter((target) => target.width < 44 || target.height < 44),
-      targets,
+      targets: targets.map(({ element, visible, ...target }) => target),
       radioCount: decisionControls.filter((element) => element.getAttribute('role') === 'radio').length,
+      navBounds,
+      blockedByNav,
+      visualViewportHeight: Math.round(window.visualViewport ? window.visualViewport.height : window.innerHeight),
     };
   })()`);
 }
@@ -227,14 +294,32 @@ async function saveScreenshot(page, name) {
   fs.writeFileSync(path.join(evidenceDir, `${name}.png`), Buffer.from(screenshot.data, 'base64'));
 }
 
-async function waitForDownload(downloadDir) {
+async function waitForDownload(downloadDir, filesBefore = new Set()) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 10000) {
     const files = fs.readdirSync(downloadDir).filter((name) => !name.endsWith('.crdownload'));
-    if (files.length) return path.join(downloadDir, files[0]);
+    const created = files.find((name) => !filesBefore.has(name) && fs.statSync(path.join(downloadDir, name)).size > 0);
+    if (created) return path.join(downloadDir, created);
     await wait(120);
   }
   throw new Error('The recovery handoff download did not produce a real file.');
+}
+
+function assertLayout(layout, viewportName, expectedRadios) {
+  assert(layout.overflowX === 0, `${viewportName} viewport has ${layout.overflowX}px horizontal overflow.`);
+  assert(layout.undersized.length === 0, `${viewportName} viewport has touch targets below 44px: ${JSON.stringify(layout.undersized)}`);
+  assert(layout.radioCount === expectedRadios, `${viewportName} viewport expected ${expectedRadios} candidates, found ${layout.radioCount}.`);
+  assert(layout.navBounds, `${viewportName} viewport lost the bottom navigation.`);
+  assert(layout.navBounds.bottom <= layout.visualViewportHeight + 2, `${viewportName} bottom navigation extends beyond the safe viewport.`);
+  assert(layout.blockedByNav.length === 0, `${viewportName} bottom navigation overlaps controls: ${layout.blockedByNav.join(', ')}`);
+}
+
+async function resetJourney(page) {
+  await page.evaluate(`(() => { localStorage.clear(); sessionStorage.clear(); return true; })()`);
+  await page.send('Page.reload', { ignoreCache: true });
+  await waitForExpression(page, `document.body.innerText.includes('从今天的状态，到一份可复核结果')`, 'Guest-first recovery journey did not load.');
+  await waitForExpression(page, `document.body.innerText.includes('暂无上次反馈')`, 'Stored feedback reader did not settle.');
+  await page.evaluate(`window.alert = () => {}; window.confirm = () => true; true;`);
 }
 
 async function main() {
@@ -261,54 +346,102 @@ async function main() {
   try {
     await waitForJson(`http://127.0.0.1:${debugPort}/json/version`);
     const page = await openPage(debugPort, `http://127.0.0.1:${port}/`, downloadDir);
-    await setViewport(page, { width: 390, height: 844, scale: 3 });
-    await waitForExpression(page, `document.body.innerText.includes('从今天的状态，到一份可复核结果')`, 'Guest-first recovery journey did not load.');
-    assert(!(await page.evaluate(`document.body.innerText.includes('请先登录后使用')`)), 'Login unexpectedly gates the recovery journey.');
-    await waitForExpression(page, `document.body.innerText.includes('暂无上次反馈')`, 'Stored feedback reader did not settle.');
-
-    await clickLabel(page, '已有已批准处方');
-    await clickLabel(page, '评估风险与候选');
-    await waitForExpression(page, `document.body.innerText.includes('当前未触发停止或复盘条件')`, 'Baseline recommendation did not render.');
-    assert((await page.evaluate(`document.querySelectorAll('[role="radio"]').length`)) === 3, 'The baseline review must expose three candidates.');
-
-    await clickRole(page, 'checkbox');
-    await clickLabel(page, '出现不适');
-    await clickLabel(page, '保存到下次复盘');
-    await waitForExpression(page, `document.body.innerText.includes('反馈已进入下一次复盘')`, 'Feedback did not save.');
-    await clickLabel(page, '评估风险与候选');
-    await waitForExpression(page, `document.body.innerText.includes('上次反馈为“出现不适”，所以')`, 'Saved discomfort did not causally change the next review.');
-    assert((await page.evaluate(`document.querySelectorAll('[role="radio"]').length`)) === 3, 'The feedback-driven review must expose three candidates.');
-
-    await clickRole(page, 'checkbox');
-    await page.evaluate(`window.alert = () => {}; true;`);
-    await clickLabel(page, '导出今日交接单');
-    const downloadedPath = await waitForDownload(downloadDir);
-    const downloadedText = fs.readFileSync(downloadedPath, 'utf8');
-    assert(downloadedText.includes('建议优先级：优先复盘'), 'Downloaded handoff is missing the feedback-driven priority.');
-    assert(downloadedText.includes('方案权衡：'), 'Downloaded handoff is missing the selected tradeoff.');
-
     const results = [];
     for (const viewport of [
       { name: 'small', width: 320, height: 720, scale: 2 },
       { name: 'standard', width: 390, height: 844, scale: 3 },
       { name: 'large', width: 430, height: 932, scale: 3 },
     ]) {
+      const viewportDownloadDir = path.join(downloadDir, viewport.name);
+      fs.mkdirSync(viewportDownloadDir);
+      await page.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: viewportDownloadDir });
       await setViewport(page, viewport);
-      const layout = await inspectLayout(page);
-      assert(layout.overflowX <= 2, `${viewport.name} viewport has ${layout.overflowX}px horizontal overflow.`);
-      assert(layout.undersized.length === 0, `${viewport.name} viewport has touch targets below 44px: ${JSON.stringify(layout.undersized)}`);
-      assert(layout.radioCount === 3, `${viewport.name} viewport lost recovery candidates.`);
-      await saveScreenshot(page, `feedback-review-${viewport.name}`);
-      results.push({ viewport: `${viewport.width}x${viewport.height}`, overflowX: layout.overflowX, minimumTouchTarget: Math.min(...layout.targets.map((item) => Math.min(item.width, item.height))) });
+      await resetJourney(page);
+      assert(!(await page.evaluate(`document.body.innerText.includes('请先登录后使用')`)), 'Login unexpectedly gates the recovery journey.');
+      await waitForExpression(page, `document.querySelector('[data-recovery-story-scene="01"][data-recovery-story-loaded="true"]')`, `${viewport.name} initial story scene did not load.`);
+      assert((await page.evaluate(`document.querySelectorAll('[data-recovery-story-scene]').length`)) === 1, `${viewport.name} must render only the current recovery scene for lazy loading.`);
+      let layout = await inspectLayout(page);
+      assertLayout(layout, viewport.name, 0);
+      let minimumTouchTarget = Math.min(...layout.targets.map((item) => Math.min(item.width, item.height)));
+      await saveScreenshot(page, `${viewport.name}-01-start`);
+
+      const keyboard = await focusLabel(page, '当前疼痛（0-10）');
+      assert(keyboard?.active, `${viewport.name} could not focus the pain input.`);
+      assert(keyboard.bottom <= keyboard.visualViewportHeight, `${viewport.name} focused input is obscured by the visual viewport.`);
+      await saveScreenshot(page, `${viewport.name}-02-keyboard-focus`);
+
+      await clickLabel(page, '已有已批准处方');
+      await clickLabel(page, '评估风险与候选');
+      await waitForExpression(page, `document.body.innerText.includes('当前未触发停止或复盘条件')`, 'Baseline recommendation did not render.');
+      await waitForExpression(page, `document.body.innerText.includes('收益：') && document.body.innerText.includes('权衡：')`, 'Candidate safety tradeoffs did not render.');
+      await clickLabel(page, '选择方案：按已批准处方执行');
+      layout = await inspectLayout(page);
+      assertLayout(layout, viewport.name, 3);
+      minimumTouchTarget = Math.min(minimumTouchTarget, ...layout.targets.map((item) => Math.min(item.width, item.height)));
+      await saveScreenshot(page, `${viewport.name}-03-candidates-tradeoffs`);
+
+      const storySources = [];
+      for (let number = 1; number <= 24; number += 1) {
+        const loadedScene = await clickStoryScene(page, number);
+        assert(loadedScene.scene === String(number).padStart(2, '0'), `${viewport.name} loaded the wrong scene for chapter ${number}.`);
+        assert(loadedScene.source.includes('.webp'), `${viewport.name} scene ${number} did not resolve to a WebP resource.`);
+        storySources.push(loadedScene.source);
+      }
+      assert(new Set(storySources).size === 24, `${viewport.name} did not load 24 independent story resources.`);
+
+      await clickLabel(page, '人工确认这个选择');
+      await saveScreenshot(page, `${viewport.name}-04-human-confirmation`);
+      await clickLabel(page, '出现不适');
+      await saveScreenshot(page, `${viewport.name}-05-discomfort-feedback`);
+      await clickLabel(page, '保存到下次复盘');
+      await waitForExpression(page, `document.body.innerText.includes('反馈已进入下一次复盘')`, 'Feedback did not save.');
+      await saveScreenshot(page, `${viewport.name}-06-feedback-saved`);
+
+      await clickLabel(page, '评估风险与候选');
+      await waitForExpression(page, `document.body.innerText.includes('上次反馈为“出现不适”，所以')`, 'Saved discomfort did not causally change the next review.');
+      layout = await inspectLayout(page);
+      assertLayout(layout, viewport.name, 3);
+      minimumTouchTarget = Math.min(minimumTouchTarget, ...layout.targets.map((item) => Math.min(item.width, item.height)));
+      await saveScreenshot(page, `${viewport.name}-07-next-review-priority`);
+
+      await clickLabel(page, '人工确认这个选择');
+      const filesBefore = new Set(fs.readdirSync(viewportDownloadDir));
+      await clickLabel(page, '导出今日交接单');
+      const downloadedPath = await waitForDownload(viewportDownloadDir, filesBefore);
+      const downloadedText = fs.readFileSync(downloadedPath, 'utf8');
+      const downloadedPriority = downloadedText.match(/^建议优先级：.*$/m)?.[0] || '建议优先级字段缺失';
+      assert(downloadedText.includes('建议优先级：优先复盘'), `${viewport.name} downloaded handoff has the wrong priority: ${downloadedPriority}`);
+      assert(downloadedText.includes('方案收益：') && downloadedText.includes('方案权衡：'), `${viewport.name} downloaded handoff is missing the selected safety tradeoff.`);
+      await saveScreenshot(page, `${viewport.name}-08-real-download`);
+      layout = await inspectLayout(page);
+      assertLayout(layout, viewport.name, 3);
+      minimumTouchTarget = Math.min(minimumTouchTarget, ...layout.targets.map((item) => Math.min(item.width, item.height)));
+
+      results.push({
+        viewport: `${viewport.width}x${viewport.height}`,
+        fullJourney: true,
+        keyboardVisibleControl: true,
+        candidates: 3,
+        storyResources: new Set(storySources).size,
+        lazySingleScene: true,
+        feedbackCausality: '出现不适 -> 优先复盘',
+        realDownloadBytes: Buffer.byteLength(downloadedText),
+        overflowX: layout.overflowX,
+        minimumTouchTarget,
+        navigationSafe: layout.navBounds.bottom <= layout.visualViewportHeight + 2 && layout.blockedByNav.length === 0,
+        actionHitTests: true,
+      });
     }
 
     assert(page.errors.length === 0, `Browser errors: ${page.errors.join(' | ')}`);
+    const screenshotNames = fs.readdirSync(evidenceDir).filter((name) => /^(small|standard|large)-0[1-8]-.*\.png$/.test(name));
+    assert(screenshotNames.length === 24, `Expected 24 mobile journey screenshots, found ${screenshotNames.length}.`);
     console.log(JSON.stringify({
       guestAccess: true,
-      feedbackCausality: '出现不适 -> 优先复盘',
-      candidates: 3,
-      realDownloadBytes: Buffer.byteLength(downloadedText),
+      independentStoryResources: 24,
+      fullJourneyPerViewport: true,
       viewports: results,
+      screenshotCount: screenshotNames.length,
       screenshots: path.relative(root, evidenceDir),
     }, null, 2));
   } finally {

@@ -190,7 +190,7 @@ function evaluateRecoverySituation(input = {}) {
       candidates: [
         candidate('record_and_review', '只记录现状并提交复盘', '整理目标、疼痛和可用时间，交给负责的专业人员确认。', '保留完整上下文，不擅自开始训练。', '需要等待专业复核。'),
         candidate('contact_team', '联系康复团队', '暂不开始训练，先补齐有效处方或当日专业意见。', '可确认现有方案是否仍有效。', '需要额外沟通时间。'),
-        candidate('record_only', '今天只记录，不训练', '保存本次状态，之后取得有效方案再决定。', '无需登录也能保留本机记录。', '今天不会推进训练目标。'),
+        candidate('record_only', '今天只记录，不训练', '保存本次状态，之后取得有效方案再决定。', '保留本次状态，便于取得有效方案后继续复盘。', '今天不会推进训练目标。'),
       ],
       recommendation: {
         candidateId: 'record_and_review',
