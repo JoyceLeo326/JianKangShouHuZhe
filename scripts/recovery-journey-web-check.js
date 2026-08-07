@@ -7,6 +7,20 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const webRoot = path.join(root, 'release', 'github-pages-deploy');
 const evidenceDir = path.join(root, 'release', 'recovery-web-check');
+const interactiveSelector = [
+  'button', 'a[href]', 'input:not([type="hidden"])', 'textarea', 'select',
+  '[role="button"]', '[role="link"]', '[role="radio"]', '[role="checkbox"]', '[role="tab"]',
+  '[role="switch"]', '[role="slider"]', '[role="spinbutton"]', '[role="combobox"]',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+const repairedControlLabels = [
+  '登录或注册健康守护者账号',
+  '记录今日康复打卡',
+  '查看全部重点患者',
+  '查看来源：RUH Hand Therapy',
+  '查看来源：NICE NG236',
+  '查看来源：RUH FAQ',
+];
 const chromeCandidates = [
   process.env.CHROME_PATH,
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -239,36 +253,42 @@ async function setViewport(page, viewport) {
 async function inspectLayout(page) {
   return page.evaluate(`(() => {
     const width = document.documentElement.clientWidth;
-    const labels = [
-      '今天想完成什么', '当前疼痛（0-10）', '可用时间（分钟）',
-      '已有已批准处方', '没有或不确定', '疼痛突然明显加重', '皮肤变色或明显肿胀',
-      '呼吸困难或意识异常', '评估风险与候选', '人工确认这个选择',
-      '导出今日交接单', '保存到下次复盘', '上一幕', '下一幕',
-      '工作台', '患者', '训练', '洞察', '我的'
-    ];
-    const labelled = labels.map((label) => Array.from(document.querySelectorAll('[aria-label]'))
-      .find((element) => element.getAttribute('aria-label') === label)).filter(Boolean);
-    const storyControls = Array.from(document.querySelectorAll('[aria-label^="查看康复叙事第 "]'));
-    const decisionControls = Array.from(document.querySelectorAll('[role="radio"], [role="checkbox"]'));
-    const controls = Array.from(new Set([...labelled, ...storyControls, ...decisionControls]));
+    const accessibleName = (element) => {
+      const direct = (element.getAttribute('aria-label') || '').trim();
+      if (direct) return direct;
+      const labelledBy = (element.getAttribute('aria-labelledby') || '').trim();
+      if (labelledBy) {
+        const referenced = labelledBy.split(' ').map((id) => document.getElementById(id)?.textContent || '').join(' ').trim();
+        if (referenced) return referenced;
+      }
+      const alternate = (element.getAttribute('alt') || element.getAttribute('title') || '').trim();
+      if (alternate) return alternate;
+      return (element.textContent || '').trim();
+    };
+    const controls = Array.from(new Set(document.querySelectorAll(${JSON.stringify(interactiveSelector)})));
     const targets = controls.map((element) => {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
+      const name = accessibleName(element);
       return {
         element,
-        label: element.getAttribute('aria-label') || element.getAttribute('role'),
+        name,
+        label: name || element.getAttribute('role') || element.tagName.toLowerCase(),
+        role: element.getAttribute('role') || element.tagName.toLowerCase(),
         left: Math.round(rect.left), top: Math.round(rect.top), right: Math.round(rect.right), bottom: Math.round(rect.bottom),
+        rawWidth: rect.width, rawHeight: rect.height,
         width: Math.round(rect.width), height: Math.round(rect.height),
         visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none',
       };
     }).filter((target) => target.visible);
-    const tabTargets = targets.filter((target) => ['工作台', '患者', '训练', '洞察', '我的'].includes(target.label));
+    const navigationLabels = ['工作台', '训练', 'AI助手', '数据', '我的'];
+    const tabTargets = targets.filter((target) => navigationLabels.includes(target.label));
     const navBounds = tabTargets.length ? {
       top: Math.min(...tabTargets.map((target) => target.top)),
       bottom: Math.max(...tabTargets.map((target) => target.bottom)),
     } : null;
     const blockedByNav = navBounds ? targets.filter((target) => {
-      if (['工作台', '患者', '训练', '洞察', '我的'].includes(target.label)) return false;
+      if (navigationLabels.includes(target.label)) return false;
       if (target.bottom <= navBounds.top || target.top >= navBounds.bottom) return false;
       const x = Math.max(1, Math.min(window.innerWidth - 1, (target.left + target.right) / 2));
       const y = (Math.max(target.top, navBounds.top) + Math.min(target.bottom, navBounds.bottom)) / 2;
@@ -279,12 +299,64 @@ async function inspectLayout(page) {
       documentScrollWidth: document.documentElement.scrollWidth,
       bodyScrollWidth: document.body.scrollWidth,
       overflowX: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - width,
-      undersized: targets.filter((target) => target.width < 44 || target.height < 44),
-      targets: targets.map(({ element, visible, ...target }) => target),
-      radioCount: decisionControls.filter((element) => element.getAttribute('role') === 'radio').length,
+      interactiveCount: targets.length,
+      undersized: targets.filter((target) => target.rawWidth < 44 || target.rawHeight < 44)
+        .map(({ label, role, width: targetWidth, height: targetHeight }) => ({ label, role, width: targetWidth, height: targetHeight })),
+      unnamed: targets.filter((target) => !target.name).map((target) => target.role),
+      targets: targets.map(({ element, visible, rawWidth, rawHeight, ...target }) => target),
+      radioCount: targets.filter((target) => target.role === 'radio').length,
+      navigationCount: tabTargets.length,
       navBounds,
       blockedByNav,
       visualViewportHeight: Math.round(window.visualViewport ? window.visualViewport.height : window.innerHeight),
+    };
+  })()`);
+}
+
+async function inspectKeyboardAccess(page) {
+  return page.evaluate(`(async () => {
+    const accessibleName = (element) => {
+      const direct = (element.getAttribute('aria-label') || '').trim();
+      if (direct) return direct;
+      const labelledBy = (element.getAttribute('aria-labelledby') || '').trim();
+      if (labelledBy) {
+        const referenced = labelledBy.split(' ').map((id) => document.getElementById(id)?.textContent || '').join(' ').trim();
+        if (referenced) return referenced;
+      }
+      const alternate = (element.getAttribute('alt') || element.getAttribute('title') || '').trim();
+      if (alternate) return alternate;
+      return (element.textContent || '').trim();
+    };
+    const controls = Array.from(new Set(document.querySelectorAll(${JSON.stringify(interactiveSelector)}))).filter((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    });
+    const enabled = controls.filter((element) => !element.disabled && element.getAttribute('aria-disabled') !== 'true');
+    const repairedLabels = ${JSON.stringify(repairedControlLabels)};
+    const focusFailures = [];
+    const repairedSeen = [];
+    const repairedFocusFailures = [];
+    for (const element of enabled) {
+      const name = accessibleName(element);
+      element.focus({ preventScroll: true });
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const active = document.activeElement === element || element.contains(document.activeElement);
+      if (!active) focusFailures.push(name || element.getAttribute('role') || element.tagName.toLowerCase());
+      if (repairedLabels.includes(name)) {
+        repairedSeen.push(name);
+        const style = getComputedStyle(element);
+        const outlineVisible = style.outlineStyle !== 'none' && parseFloat(style.outlineWidth || '0') >= 2;
+        if (!active || !outlineVisible) repairedFocusFailures.push(name);
+      }
+    }
+    if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
+    return {
+      focusableCount: enabled.length,
+      focusFailures,
+      repairedSeen: Array.from(new Set(repairedSeen)),
+      repairedMissing: repairedLabels.filter((label) => !repairedSeen.includes(label)),
+      repairedFocusFailures,
     };
   })()`);
 }
@@ -308,10 +380,20 @@ async function waitForDownload(downloadDir, filesBefore = new Set()) {
 function assertLayout(layout, viewportName, expectedRadios) {
   assert(layout.overflowX === 0, `${viewportName} viewport has ${layout.overflowX}px horizontal overflow.`);
   assert(layout.undersized.length === 0, `${viewportName} viewport has touch targets below 44px: ${JSON.stringify(layout.undersized)}`);
+  assert(layout.unnamed.length === 0, `${viewportName} viewport has interactive controls without accessible names: ${JSON.stringify(layout.unnamed)}`);
   assert(layout.radioCount === expectedRadios, `${viewportName} viewport expected ${expectedRadios} candidates, found ${layout.radioCount}.`);
   assert(layout.navBounds, `${viewportName} viewport lost the bottom navigation.`);
+  assert(layout.navigationCount === 5, `${viewportName} viewport expected five navigation controls, found ${layout.navigationCount}.`);
   assert(layout.navBounds.bottom <= layout.visualViewportHeight + 2, `${viewportName} bottom navigation extends beyond the safe viewport.`);
   assert(layout.blockedByNav.length === 0, `${viewportName} bottom navigation overlaps controls: ${layout.blockedByNav.join(', ')}`);
+}
+
+async function assertKeyboardAccess(page, viewportName) {
+  const keyboard = await inspectKeyboardAccess(page);
+  assert(keyboard.focusFailures.length === 0, `${viewportName} viewport has controls that cannot receive keyboard focus: ${keyboard.focusFailures.join(', ')}`);
+  assert(keyboard.repairedMissing.length === 0, `${viewportName} viewport is missing repaired controls: ${keyboard.repairedMissing.join(', ')}`);
+  assert(keyboard.repairedFocusFailures.length === 0, `${viewportName} viewport repaired controls lack a visible focus indicator: ${keyboard.repairedFocusFailures.join(', ')}`);
+  return keyboard;
 }
 
 async function resetJourney(page) {
@@ -362,6 +444,9 @@ async function main() {
       assert((await page.evaluate(`document.querySelectorAll('[data-recovery-story-scene]').length`)) === 1, `${viewport.name} must render only the current recovery scene for lazy loading.`);
       let layout = await inspectLayout(page);
       assertLayout(layout, viewport.name, 0);
+      let keyboardAudit = await assertKeyboardAccess(page, viewport.name);
+      let maximumInteractiveControls = layout.interactiveCount;
+      let maximumKeyboardFocusableControls = keyboardAudit.focusableCount;
       let minimumTouchTarget = Math.min(...layout.targets.map((item) => Math.min(item.width, item.height)));
       await saveScreenshot(page, `${viewport.name}-01-start`);
 
@@ -377,6 +462,9 @@ async function main() {
       await clickLabel(page, '选择方案：按已批准处方执行');
       layout = await inspectLayout(page);
       assertLayout(layout, viewport.name, 3);
+      keyboardAudit = await assertKeyboardAccess(page, viewport.name);
+      maximumInteractiveControls = Math.max(maximumInteractiveControls, layout.interactiveCount);
+      maximumKeyboardFocusableControls = Math.max(maximumKeyboardFocusableControls, keyboardAudit.focusableCount);
       minimumTouchTarget = Math.min(minimumTouchTarget, ...layout.targets.map((item) => Math.min(item.width, item.height)));
       await saveScreenshot(page, `${viewport.name}-03-candidates-tradeoffs`);
 
@@ -401,6 +489,9 @@ async function main() {
       await waitForExpression(page, `document.body.innerText.includes('上次反馈为“出现不适”，所以')`, 'Saved discomfort did not causally change the next review.');
       layout = await inspectLayout(page);
       assertLayout(layout, viewport.name, 3);
+      keyboardAudit = await assertKeyboardAccess(page, viewport.name);
+      maximumInteractiveControls = Math.max(maximumInteractiveControls, layout.interactiveCount);
+      maximumKeyboardFocusableControls = Math.max(maximumKeyboardFocusableControls, keyboardAudit.focusableCount);
       minimumTouchTarget = Math.min(minimumTouchTarget, ...layout.targets.map((item) => Math.min(item.width, item.height)));
       await saveScreenshot(page, `${viewport.name}-07-next-review-priority`);
 
@@ -415,6 +506,9 @@ async function main() {
       await saveScreenshot(page, `${viewport.name}-08-real-download`);
       layout = await inspectLayout(page);
       assertLayout(layout, viewport.name, 3);
+      keyboardAudit = await assertKeyboardAccess(page, viewport.name);
+      maximumInteractiveControls = Math.max(maximumInteractiveControls, layout.interactiveCount);
+      maximumKeyboardFocusableControls = Math.max(maximumKeyboardFocusableControls, keyboardAudit.focusableCount);
       minimumTouchTarget = Math.min(minimumTouchTarget, ...layout.targets.map((item) => Math.min(item.width, item.height)));
 
       results.push({
@@ -428,6 +522,10 @@ async function main() {
         realDownloadBytes: Buffer.byteLength(downloadedText),
         overflowX: layout.overflowX,
         minimumTouchTarget,
+        maximumInteractiveControls,
+        maximumKeyboardFocusableControls,
+        accessibleNames: true,
+        repairedFocusIndicators: true,
         navigationSafe: layout.navBounds.bottom <= layout.visualViewportHeight + 2 && layout.blockedByNav.length === 0,
         actionHitTests: true,
       });

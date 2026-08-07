@@ -805,10 +805,10 @@ function SectionHeader({ num, eyebrow, eyebrowColor, title, subtitle, action, on
         {!!subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
       </View>
       {!!action && (
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={action} onPress={onAction} activeOpacity={0.7} style={styles.textAction} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <FocusableTouchableOpacity accessibilityRole="button" accessibilityLabel={action === '全部' ? `查看全部${title}` : `${action}${title}`} accessibilityHint={`打开${title}的更多内容`} onPress={onAction} activeOpacity={0.7} style={styles.textAction}>
           <Text style={styles.textActionLabel}>{action}</Text>
           <Ionicons name="arrow-forward" size={14} color={C.primaryDeep} />
-        </TouchableOpacity>
+        </FocusableTouchableOpacity>
       )}
     </View>
   );
@@ -1138,6 +1138,28 @@ function RecoveryStoryGallery({ activeStoryIndex, setActiveStoryIndex }) {
   );
 }
 
+// 为紧凑型 Web 操作提供一致的 44px 触控面与清晰键盘焦点反馈。
+function FocusableTouchableOpacity({ children, style, onFocus, onBlur, ...props }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <TouchableOpacity
+      {...props}
+      focusable
+      onFocus={(event) => {
+        setFocused(true);
+        if (onFocus) onFocus(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        if (onBlur) onBlur(event);
+      }}
+      style={[style, focused && styles.keyboardFocus]}
+    >
+      {children}
+    </TouchableOpacity>
+  );
+}
+
 function RecoveryJourneyCard() {
   const [goal, setGoal] = useState('按既有计划训练并记录反馈');
   const [pain, setPain] = useState('2');
@@ -1383,10 +1405,10 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
           <Text style={styles.wbGreetBig}>你好，{user.name}</Text>
         </View>
         {isLocal ? (
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="登录或注册" style={styles.authEntry} activeOpacity={0.8} onPress={onOpenAccount}>
+          <FocusableTouchableOpacity accessibilityRole="button" accessibilityLabel="登录或注册健康守护者账号" accessibilityHint="打开账号登录与注册页面" style={styles.authEntry} activeOpacity={0.8} onPress={onOpenAccount}>
             <Ionicons name="person-circle-outline" size={18} color={C.primaryDeep} />
             <Text style={styles.authEntryText}>登录注册</Text>
-          </TouchableOpacity>
+          </FocusableTouchableOpacity>
         ) : (
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="查看通知" style={styles.wbBell} activeOpacity={0.8} onPress={() => Alert.alert('通知', tasks.length ? `当前有 ${tasks.filter((item) => !item.done).length} 项待处理。` : '暂无待处理提醒。')}>
             <Ionicons name="notifications-outline" size={20} color={C.inkSoft} />
@@ -1489,12 +1511,12 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
             </View>
             <Text style={styles.streakLabel}>连续康复打卡 · 累计 {eng.totalCheckIns || 0} 次</Text>
           </View>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel={checkedToday ? '今日已打卡' : '记录今日打卡'} accessibilityState={{ disabled: checkedToday }} activeOpacity={0.85} onPress={checkIn} disabled={checkedToday} style={styles.streakBtnWrap}>
+          <FocusableTouchableOpacity accessibilityRole="button" accessibilityLabel={checkedToday ? '今日康复打卡已完成' : '记录今日康复打卡'} accessibilityHint={checkedToday ? '今日打卡已经记录' : '记录今天的康复打卡'} accessibilityState={{ disabled: checkedToday }} activeOpacity={0.85} onPress={checkIn} disabled={checkedToday} style={styles.streakBtnWrap}>
             <LinearGradient colors={checkedToday ? ['#E0E6E1', '#E0E6E1'] : G.primaryDeep} start={GS} end={GE} style={styles.streakBtn}>
               <Ionicons name={checkedToday ? 'checkmark-done' : 'flame-outline'} size={15} color={checkedToday ? C.muted : C.white} />
               <Text style={[styles.streakBtnText, checkedToday && { color: C.muted }]}>{checkedToday ? '已打卡' : '打卡'}</Text>
             </LinearGradient>
-          </TouchableOpacity>
+          </FocusableTouchableOpacity>
         </Card>
       </Appear>
 
@@ -1580,10 +1602,10 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
             </View>
             <Text style={styles.knowTitle}>{k.title}</Text>
             <Text style={styles.knowBody}>{k.body}</Text>
-            <TouchableOpacity accessibilityRole="link" accessibilityLabel={`查看来源：${k.sourceLabel}`} activeOpacity={0.7} onPress={() => Linking.openURL(k.sourceUrl)} style={styles.knowSource}>
+            <FocusableTouchableOpacity accessibilityRole="link" accessibilityLabel={`查看来源：${k.sourceLabel}`} accessibilityHint="在新窗口打开外部循证资料" activeOpacity={0.7} onPress={() => Linking.openURL(k.sourceUrl)} style={styles.knowSource}>
               <Text style={styles.knowSourceText}>{k.sourceLabel}</Text>
               <Ionicons name="open-outline" size={13} color={C.primaryDeep} />
-            </TouchableOpacity>
+            </FocusableTouchableOpacity>
           </View>
         ))}
       </ScrollView>
@@ -3282,6 +3304,10 @@ const styles = StyleSheet.create({
     } : {}),
   },
   appBody: { flex: 1, backgroundColor: C.bg },
+  keyboardFocus: Platform.select({
+    web: { outlineStyle: 'solid', outlineWidth: 3, outlineColor: C.primaryDeep, outlineOffset: 2 },
+    default: { borderColor: C.primaryDeep, borderWidth: 2 },
+  }),
   screen: { flex: 1, backgroundColor: C.bg },
   screenContent: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 120 },
   journeyCard: { padding: 16, marginBottom: 22 },
@@ -3394,7 +3420,7 @@ const styles = StyleSheet.create({
   wbGreetBig: { fontSize: 22, color: C.ink, fontWeight: '800', marginTop: 4 },
   wbBell: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
   wbBellDot: { position: 'absolute', top: 11, right: 11, width: 8, height: 8, borderRadius: 4, backgroundColor: C.coral, borderWidth: 2, borderColor: C.surface },
-  authEntry: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.primaryTint, borderWidth: 1, borderColor: '#BFDCD5', borderRadius: 14, paddingHorizontal: 11, height: 42 },
+  authEntry: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.primaryTint, borderWidth: 1, borderColor: '#BFDCD5', borderRadius: 14, paddingHorizontal: 11, minWidth: 44, height: 44 },
   authEntryText: { color: C.primaryDeep, fontSize: 12, fontWeight: '800', marginLeft: 5 },
 
   /* hero card */
@@ -3427,7 +3453,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 },
   sectionTitle: { fontSize: 20, fontWeight: '900', color: C.ink, letterSpacing: 0.2 },
   sectionSubtitle: { fontSize: 12, color: C.muted, marginTop: 4 },
-  textAction: { flexDirection: 'row', alignItems: 'center' },
+  textAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44, borderRadius: 12, paddingHorizontal: 6 },
   textActionLabel: { color: C.primaryDeep, fontSize: 13, fontWeight: '800', marginRight: 5 },
 
   /* tasks */
@@ -3746,8 +3772,8 @@ const styles = StyleSheet.create({
   streakNum: { fontSize: 30, fontWeight: '900', color: C.ink, letterSpacing: -1, lineHeight: 32 },
   streakUnit: { fontSize: 14, color: C.muted, fontWeight: '800', marginLeft: 4, marginBottom: 3 },
   streakLabel: { fontSize: 12, color: C.muted, fontWeight: '600', marginTop: 4 },
-  streakBtnWrap: SHADOW.glowPrimary,
-  streakBtn: { flexDirection: 'row', alignItems: 'center', height: 40, paddingHorizontal: 16, borderRadius: 13 },
+  streakBtnWrap: { minWidth: 44, minHeight: 44, borderRadius: 13, ...SHADOW.glowPrimary },
+  streakBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 44, paddingHorizontal: 16, borderRadius: 13 },
   streakBtnText: { color: C.white, fontSize: 13.5, fontWeight: '800', marginLeft: 6 },
 
   /* workbench: plan */
@@ -3770,7 +3796,7 @@ const styles = StyleSheet.create({
   knowTagText: { fontSize: 10.5, color: C.inkSoft, fontWeight: '800', letterSpacing: 0.5 },
   knowTitle: { fontSize: 14.5, fontWeight: '800', color: C.ink, marginBottom: 6 },
   knowBody: { fontSize: 12, color: C.muted, lineHeight: 19 },
-  knowSource: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, marginTop: 10, paddingVertical: 4 },
+  knowSource: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, minWidth: 44, minHeight: 44, marginTop: 4, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: 12 },
   knowSourceText: { fontSize: 10.5, color: C.primaryDeep, fontWeight: '700' },
 
   /* AI doctor screen */
