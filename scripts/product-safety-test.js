@@ -8,6 +8,7 @@ const server = fs.readFileSync(path.join(root, 'server', 'index.js'), 'utf8');
 const db = fs.readFileSync(path.join(root, 'server', 'db.js'), 'utf8');
 const recoveryDomain = fs.readFileSync(path.join(root, 'src', 'domain', 'recovery-journey.js'), 'utf8');
 const recoveryStoryDir = path.join(root, 'assets', 'recovery-story');
+const recoveryWebCheck = fs.readFileSync(path.join(root, 'scripts', 'recovery-journey-web-check.js'), 'utf8');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -60,6 +61,20 @@ for (const contract of [
 }
 
 assert(app.includes('minHeight: 44'), 'interactive recovery controls must keep a 44px mobile touch target');
+for (const contract of [
+  'function FocusableTouchableOpacity',
+  'styles.keyboardFocus',
+  '登录或注册健康守护者账号',
+  '记录今日康复打卡',
+  '查看来源：${k.sourceLabel}',
+  "height: 44",
+  'minWidth: 44, minHeight: 44',
+]) {
+  assert(app.includes(contract), `the compact mobile accessibility repair is missing: ${contract}`);
+}
+for (const contract of ['interactiveSelector', 'repairedControlLabels', 'inspectKeyboardAccess', 'layout.unnamed', 'layout.navigationCount === 5']) {
+  assert(recoveryWebCheck.includes(contract), `the broad mobile interaction gate is missing: ${contract}`);
+}
 
 const recoveryStoryFiles = fs.readdirSync(recoveryStoryDir).filter((name) => name.endsWith('.webp')).sort();
 assert(recoveryStoryFiles.length === 24, `the recovery story must contain exactly 24 WebP scenes, found ${recoveryStoryFiles.length}`);
