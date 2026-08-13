@@ -48,7 +48,8 @@ async function waitForServer(child) {
 async function main() {
   const appConfig = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   if (appConfig.expo.name !== '健康守护者') fail('app.json name mismatch');
-  if (appConfig.expo.android.package !== 'com.jerry.jiankangshouhuzhe') fail('android package mismatch');
+  if (appConfig.expo.ios.bundleIdentifier !== 'com.joyceleo.jiankangshouhuzhe') fail('iOS bundle identifier mismatch');
+  if (appConfig.expo.android.package !== 'com.joyceleo.jiankangshouhuzhe') fail('android package mismatch');
   if (!Array.isArray(appConfig.expo.android.permissions) || appConfig.expo.android.permissions.length !== 0) fail('android permissions should stay empty for current build');
 
   const child = spawn(process.execPath, ['server/index.js'], {

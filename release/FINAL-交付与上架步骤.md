@@ -33,7 +33,7 @@
 启动方式：
 
 ```powershell
-cd C:\Users\Jerry\Desktop\JianKangShouHuZhe
+cd <project-directory>\JianKangShouHuZhe
 npm run server
 ```
 

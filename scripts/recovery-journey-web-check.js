@@ -433,6 +433,7 @@ async function main() {
       { name: 'small', width: 320, height: 720, scale: 2 },
       { name: 'standard', width: 390, height: 844, scale: 3 },
       { name: 'large', width: 430, height: 932, scale: 3 },
+      { name: 'desktop', width: 1440, height: 900, scale: 1 },
     ]) {
       const viewportDownloadDir = path.join(downloadDir, viewport.name);
       fs.mkdirSync(viewportDownloadDir);
@@ -532,8 +533,8 @@ async function main() {
     }
 
     assert(page.errors.length === 0, `Browser errors: ${page.errors.join(' | ')}`);
-    const screenshotNames = fs.readdirSync(evidenceDir).filter((name) => /^(small|standard|large)-0[1-8]-.*\.png$/.test(name));
-    assert(screenshotNames.length === 24, `Expected 24 mobile journey screenshots, found ${screenshotNames.length}.`);
+    const screenshotNames = fs.readdirSync(evidenceDir).filter((name) => /^(small|standard|large|desktop)-0[1-8]-.*\.png$/.test(name));
+    assert(screenshotNames.length === 32, `Expected 32 dual-end journey screenshots, found ${screenshotNames.length}.`);
     console.log(JSON.stringify({
       guestAccess: true,
       independentStoryResources: 24,

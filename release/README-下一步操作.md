@@ -17,7 +17,7 @@
 ## 本地运行 App
 
 ```powershell
-cd C:\Users\Jerry\Desktop\JianKangShouHuZhe
+cd <project-directory>\JianKangShouHuZhe
 npx expo start
 ```
 
@@ -26,7 +26,7 @@ Android 手机可使用 Expo Go 扫码预览。正式安装测试以 EAS 生成�
 ## 本地运行账号服务
 
 ```powershell
-cd C:\Users\Jerry\Desktop\JianKangShouHuZhe
+cd <project-directory>\JianKangShouHuZhe
 npm run server
 ```
 
