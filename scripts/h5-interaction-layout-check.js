@@ -314,6 +314,7 @@ async function main() {
       { name: 'small', width: 320, height: 720, scale: 2 },
       { name: 'standard', width: 390, height: 844, scale: 3 },
       { name: 'large', width: 430, height: 932, scale: 3 },
+      { name: 'desktop', width: 1440, height: 900, scale: 1 },
     ];
     const screens = ['home', 'device', 'training', 'reports'];
     for (const viewport of viewports) {

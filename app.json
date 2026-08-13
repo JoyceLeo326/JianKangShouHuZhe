@@ -15,11 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jerry.jiankangshouhuzhe",
+      "bundleIdentifier": "com.joyceleo.jiankangshouhuzhe",
       "buildNumber": "1"
     },
     "android": {
-      "package": "com.jerry.jiankangshouhuzhe",
+      "package": "com.joyceleo.jiankangshouhuzhe",
       "versionCode": 1,
       "permissions": [],
       "edgeToEdgeEnabled": false,

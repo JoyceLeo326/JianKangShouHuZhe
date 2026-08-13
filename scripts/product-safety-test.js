@@ -9,9 +9,33 @@ const db = fs.readFileSync(path.join(root, 'server', 'db.js'), 'utf8');
 const recoveryDomain = fs.readFileSync(path.join(root, 'src', 'domain', 'recovery-journey.js'), 'utf8');
 const recoveryStoryDir = path.join(root, 'assets', 'recovery-story');
 const recoveryWebCheck = fs.readFileSync(path.join(root, 'scripts', 'recovery-journey-web-check.js'), 'utf8');
+const trackedPublicFiles = require('child_process')
+  .execFileSync('git', ['ls-files', '-z'], { cwd: root })
+  .toString('utf8')
+  .split('\0')
+  .filter(Boolean);
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+const retiredIdentityTerms = [
+  ['Jer', 'ry'].join(''),
+  ['Jia', 'rui'].join(''),
+  ['Liu', ' ', 'Jia', 'rui'].join(''),
+  ['Liu', 'jia', 'rui'].join(''),
+  ['刘', '佳', '瑞'].join(''),
+  ['劉', '佳', '瑞'].join(''),
+];
+for (const relativePath of trackedPublicFiles) {
+  const filePath = path.join(root, relativePath);
+  const content = fs.readFileSync(filePath);
+  if (content.includes(0)) continue;
+  const publicText = content.toString('utf8').toLocaleLowerCase('en-US');
+  assert(
+    retiredIdentityTerms.every((term) => !publicText.includes(term.toLocaleLowerCase('en-US'))),
+    `tracked public file exposes a retired creator name: ${relativePath}`,
+  );
 }
 
 assert(app.includes("id: 'local_guest'"), 'the default session must be a clearly identified local guest');
@@ -74,6 +98,9 @@ for (const contract of [
 }
 for (const contract of ['interactiveSelector', 'repairedControlLabels', 'inspectKeyboardAccess', 'layout.unnamed', 'layout.navigationCount === 5']) {
   assert(recoveryWebCheck.includes(contract), `the broad mobile interaction gate is missing: ${contract}`);
+}
+for (const contract of ["name: 'desktop'", 'width: 1440', 'height: 900']) {
+  assert(recoveryWebCheck.includes(contract), `the desktop recovery journey gate is missing: ${contract}`);
 }
 
 const recoveryStoryFiles = fs.readdirSync(recoveryStoryDir).filter((name) => name.endsWith('.webp')).sort();
