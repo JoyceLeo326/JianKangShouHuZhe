@@ -290,7 +290,7 @@ async function main() {
     ]) {
       await setViewport(page, viewport);
       await navigate(page, `${baseUrl}/`);
-      await waitForExpression(page, `document.body.innerText.includes('让每日康复更清楚')`, 'Product root did not render.');
+      await waitForExpression(page, `document.body.innerText.includes('记录状态，复核方案')`, 'Product root did not render.');
       const rootAudit = await page.evaluate(pageAuditExpression);
       assertPageAudit(rootAudit, `${viewport.name} product root`, '健康守护者');
       assert(rootAudit.manifest === '/manifest.webmanifest', 'Product root does not expose the PWA manifest.');
