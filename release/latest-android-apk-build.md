@@ -28,7 +28,9 @@
 - 签名：APK Signature Scheme v2
 - 签名证书 SHA256：`018E2968B06650B432A30F8E368189D732B60ED4011B0A10E69C7FCCAEC25BA0`
 - 权限：`INTERNET`、`VIBRATE`、应用自身的动态接收器保护权限
-- 已确认不存在：`SYSTEM_ALERT_WINDOW`、`READ_EXTERNAL_STORAGE`、`WRITE_EXTERNAL_STORAGE`
+- 已确认不存在：相机、麦克风、定位、通讯录、电话、短信、通知、照片/文件、身体传感器、`SYSTEM_ALERT_WINDOW`、`READ_EXTERNAL_STORAGE`、`WRITE_EXTERNAL_STORAGE`
+
+安装时唯一可能需要手动开启的是 Android 系统针对下载来源的“安装未知应用”开关。只需临时允许本次使用的浏览器或文件管理器；该开关属于安装来源授权，不是健康守护者的运行时权限，安装后可关闭。产品下载页已提供小米/Redmi、华为、荣耀、OPPO/一加/realme、vivo/iQOO、三星的具体菜单路径。
 
 ## 安装与持久化验证
 

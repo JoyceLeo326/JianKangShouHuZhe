@@ -147,7 +147,7 @@
             <div class="platform-mark">APK</div>
             <p class="platform-kicker">Android 手机与平板</p>
             <h3>Android 安装包</h3>
-            <p>下载签名 APK 并完成安装后，点击桌面图标即可直接进入工作台；无需 Expo Go 或电脑连接，核心流程可离线使用。</p>
+            <p>下载签名 APK 并完成安装后，点击桌面图标即可直接进入工作台；无需 Expo Go、电脑连接或相机/定位等运行时授权，核心流程可离线使用。</p>
             <div class="release-meta"><span data-release-version>v—</span><span data-release-file>文件待确认</span></div>
             <a class="button button-solid button-full download-primary" aria-disabled="true">下载 Android APK</a>
             <a class="fallback-link download-fallback" aria-disabled="true">备用下载入口</a>
@@ -164,6 +164,29 @@
             <a class="fallback-link download-fallback" aria-disabled="true">备用下载入口</a>
             <code data-release-sha>SHA256 待发布</code>
           </article>
+        </div>
+
+        <div class="install-permission-guide" id="android-install-help">
+          <div class="install-guide-heading">
+            <div><p class="eyebrow">ANDROID INSTALL</p><h3>安卓安装与权限说明</h3></div>
+            <span class="permission-badge">无需危险运行时权限</span>
+          </div>
+          <p class="install-guide-lead">APK 仅声明联网、振动和应用内部保护权限，不申请相机、麦克风、定位、通讯录、电话、短信、照片/文件、通知或身体传感器权限。安装后的核心功能可直接打开使用。</p>
+          <ol class="install-steps">
+            <li>下载 APK 后，在通知栏、浏览器“下载内容”或文件管理器中点开。</li>
+            <li>若系统拦截，进入提示里的“设置”，只为当前浏览器或文件管理器开启“允许安装未知应用/允许来自此来源”。</li>
+            <li>返回安装页点“安装”；完成后从桌面或应用列表打开“健康守护者”。建议安装完成后关闭刚才的来源授权。</li>
+          </ol>
+          <div class="brand-install-grid">
+            <details><summary>小米 / Redmi（HyperOS、MIUI）</summary><p>设置 → 更多设置 → 隐私保护/隐私 → 特殊应用权限 → 安装未知应用 → 选择本次下载所用的浏览器或文件管理器 → 允许。也可在设置顶部搜索“安装未知应用”。</p></details>
+            <details><summary>华为（HarmonyOS、EMUI）</summary><p>设置 → 安全 → 更多安全设置 → 安装外部来源应用 → 选择本次下载来源 → 允许安装应用。若菜单名称不同，直接在设置中搜索“外部来源应用”。</p></details>
+            <details><summary>荣耀（MagicOS）</summary><p>设置中搜索“外部来源应用下载”并开启；再进入“安装外部来源应用”，选择本次使用的浏览器或文件管理器，开启“允许安装应用”。</p></details>
+            <details><summary>OPPO / 一加 / realme（ColorOS、realme UI）</summary><p>设置 → 应用 → 特殊应用权限 → 安装未知应用 → 选择本次下载来源 → 允许。旧系统可在“设置 → 安全/更多安全设置 → 未知来源安装”中找到。</p></details>
+            <details><summary>vivo / iQOO（OriginOS）</summary><p>设置 → 应用与权限 → 权限管理 → 权限 → 安装未知应用 → 选择本次下载来源 → 开启“允许安装未知应用”。也可在设置中搜索该名称。</p></details>
+            <details><summary>三星（One UI）及其他 Android</summary><p>三星：设置 → 安全和隐私 → 安装未知应用；如开关不可用，先在同页暂时关闭“自动拦截器”，安装后再重新开启。其他品牌可在设置中搜索“安装未知应用”。</p></details>
+          </div>
+          <p class="install-troubleshoot"><strong>仍无法安装：</strong>确认系统为 Android 7.0 或更高版本、预留至少 300MB 空间，并核对页面显示的 SHA256。单位或家长管控设备可能由管理员禁止侧载，此类系统策略不能由应用绕过。</p>
+          <p class="install-sources">品牌路径参考：<a href="https://www.mi.com/global/support/faq/details/KA-06974/" target="_blank" rel="noreferrer">小米官方</a> · <a href="https://consumer.huawei.com/mx/support/content/es-us00663396/" target="_blank" rel="noreferrer">华为官方</a> · <a href="https://www.honor.com/cn/support/content/zh-cn00406756/" target="_blank" rel="noreferrer">荣耀官方</a> · <a href="https://kefu.vivo.com.cn/robot/imgmsgData/7ef4d0ad04cb4909afbc039573246f87/index_1.html" target="_blank" rel="noreferrer">vivo 官方</a> · <a href="https://www.samsung.com/ae/support/mobile-devices/why-am-i-unable-to-install-apps-and-keep-receiving-an-error-pop-up-on-fold6flip6/" target="_blank" rel="noreferrer">三星官方</a></p>
         </div>
 
         <div class="network-boundary">
