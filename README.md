@@ -10,6 +10,14 @@
 
 [产品主页](https://jiankang-shouhuzhe.netlify.app/) · [在线应用](https://jiankang-shouhuzhe.netlify.app/app/) · [Android 与 Windows 下载](https://github.com/JoyceLeo326/JianKangShouHuZhe/releases/tag/v1.1.0) · [仓库主页](https://github.com/JoyceLeo326/JianKangShouHuZhe)
 
+## 下载、安装、打开即用
+
+- **Android**：从正式发布页下载 APK，按系统提示完成安装，点击桌面上的“健康守护者”图标即可直接进入工作台；不需要 Expo Go 或电脑连接，核心流程可离线使用。
+- **Windows**：下载便携 EXE 后直接运行，或解压 ZIP 后运行 `HealthGuardian.exe`，应用会在独立窗口中打开。
+- **Web**：打开在线应用即可使用，无需安装；数据默认保存在当前设备。
+
+第三方站点在中国大陆的实际可达性受当地网络环境影响，不作绝对保证。Android 下载提供主入口与备用入口；安装完成后不依赖发布网页进入应用。
+
 > **医疗边界**：本项目不诊断疾病，不自动开具、批准或调整处方，也不替代医生、康复治疗师或当地急救服务。处方始终是待专业人员复核的草稿；出现胸痛、呼吸困难、意识异常、突然单侧无力、口角歪斜或语言异常等警示症状时，应停止使用并立即联系当地急救服务。
 
 ## 从“今天能不能练”开始

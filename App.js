@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert, Animated, Dimensions, Easing, KeyboardAvoidingView, Linking, Modal, Platform,
-  Image, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput,
+  SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput,
   TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -312,7 +312,7 @@ function buildPatientContext(patient, assessments, records, prescriptions) {
   lines.push(`患者：${patient.name}，${patient.age}岁，诊断「${patient.diagnosis}」，患侧${patient.side}，当前${patient.stage}，风险等级${patient.risk}。`);
   if (s.latest) {
     const display = (value, unit = '') => value == null || value === '' ? '缺失' : `${value}${unit}`;
-    lines.push(`最新人工记录（${s.latest.date}）：握力${display(s.latest.grip, 'kg')}，关节活动度${display(s.latest.rom, '%')}，疼痛${display(s.latest.pain, '/10')}，日常生活能力${display(s.latest.adl, '%')}，未验证旧版汇总分${display(s.latest.score)}。数据来源：${s.latest.source || '未记录'}。`);
+    lines.push(`最新人工记录（${s.latest.date}）：握力${display(s.latest.grip, 'kg')}，关节活动度${display(s.latest.rom, '%')}，疼痛${display(s.latest.pain, '/10')}，日常生活能力${display(s.latest.adl, '%')}，人工汇总分${display(s.latest.score)}。数据来源：${s.latest.source || '未记录'}。`);
   }
   else lines.push('暂无评估记录。');
   if (s.r.length) {
@@ -1039,105 +1039,6 @@ function LoginScreen({ onLogin, onClose }) {
   );
 }
 
-const RECOVERY_STORY_SCENES = [
-  { id: '01', stage: '准备', title: '确定今天的目标', caption: '先把今天真正想完成的事说清楚。', image: require('./assets/recovery-story/01-intention-setting.webp') },
-  { id: '02', stage: '准备', title: '观察手部状态', caption: '记录当下感受，不猜测原因。', image: require('./assets/recovery-story/02-hand-self-check.webp') },
-  { id: '03', stage: '准备', title: '回看疼痛变化', caption: '用同一量表留下可比较的数字。', image: require('./assets/recovery-story/03-pain-reflection.webp') },
-  { id: '04', stage: '准备', title: '核对可用时间', caption: '时间不足时不擅自压缩专业方案。', image: require('./assets/recovery-story/04-time-planning.webp') },
-  { id: '05', stage: '准备', title: '核验既有方案', caption: '只以可核验的已批准处方作为边界。', image: require('./assets/recovery-story/05-plan-verification.webp') },
-  { id: '06', stage: '安全', title: '检查异常信号', caption: '把停止与求助边界放在选择之前。', image: require('./assets/recovery-story/06-warning-sign-check.webp') },
-  { id: '07', stage: '安全', title: '出现风险先暂停', caption: '异常或高疼痛时，先停止并寻求专业判断。', image: require('./assets/recovery-story/07-safe-pause.webp') },
-  { id: '08', stage: '安全', title: '等待专业确认', caption: '缺少有效方案时，先记录并联系康复团队。', image: require('./assets/recovery-story/08-professional-checkin.webp') },
-  { id: '09', stage: '选择', title: '并排比较候选', caption: '同时看见收益、代价和安全边界。', image: require('./assets/recovery-story/09-options-comparison.webp') },
-  { id: '10', stage: '选择', title: '选择更合适的一步', caption: '建议负责排序，最终选择仍由你确认。', image: require('./assets/recovery-story/10-safe-choice.webp') },
-  { id: '11', stage: '确认', title: '留下人工确认', caption: '应用不会替你执行训练或作出医疗决定。', image: require('./assets/recovery-story/11-human-confirmation.webp') },
-  { id: '12', stage: '确认', title: '按既有方案做准备', caption: '开始前再次核对环境、状态和方案版本。', image: require('./assets/recovery-story/12-session-preparation.webp') },
-  { id: '13', stage: '执行', title: '在批准边界内进行', caption: '只执行专业人员已经确认的内容。', image: require('./assets/recovery-story/13-approved-session.webp') },
-  { id: '14', stage: '执行', title: '需要时主动休息', caption: '不以完成进度覆盖身体发出的信号。', image: require('./assets/recovery-story/14-rest-break.webp') },
-  { id: '15', stage: '反馈', title: '记录实际完成情况', caption: '完成与否都是真实且有用的复盘信息。', image: require('./assets/recovery-story/15-completion-log.webp') },
-  { id: '16', stage: '反馈', title: '记录轻松感受', caption: '如实留下舒适体验，供下次对照。', image: require('./assets/recovery-story/16-comfort-feedback.webp') },
-  { id: '17', stage: '反馈', title: '记录疲劳感受', caption: '下一次先确认恢复情况，再决定是否继续。', image: require('./assets/recovery-story/17-fatigue-feedback.webp') },
-  { id: '18', stage: '反馈', title: '不适时停止推进', caption: '记录发生了什么，并把复盘优先级提前。', image: require('./assets/recovery-story/18-discomfort-stop.webp') },
-  { id: '19', stage: '回流', title: '保存结构化反馈', caption: '本次选择与感受会进入下一轮判断。', image: require('./assets/recovery-story/19-local-feedback-save.webp') },
-  { id: '20', stage: '回流', title: '下次复盘先读反馈', caption: '重新评估时先带回上一次的真实结果。', image: require('./assets/recovery-story/20-next-review-recall.webp') },
-  { id: '21', stage: '回流', title: '根据反馈调整优先级', caption: '疲劳或不适会让复盘排在继续训练之前。', image: require('./assets/recovery-story/21-priority-reorder.webp') },
-  { id: '22', stage: '交接', title: '交给专业人员复核', caption: '把目标、风险、选择与反馈放进同一份上下文。', image: require('./assets/recovery-story/22-professional-handoff.webp') },
-  { id: '23', stage: '交接', title: '导出真实交接单', caption: '生成可下载文件，供复核或下次训练前对照。', image: require('./assets/recovery-story/23-real-download.webp') },
-  { id: '24', stage: '继续', title: '带着记录继续前行', caption: '每轮反馈都让下一次判断更有依据。', image: require('./assets/recovery-story/24-continuing-journey.webp') },
-];
-
-function RecoveryStoryGallery({ activeStoryIndex, setActiveStoryIndex }) {
-  const [recoveryStoryImageLoaded, setRecoveryStoryImageLoaded] = useState(false);
-  const safeIndex = Math.max(0, Math.min(RECOVERY_STORY_SCENES.length - 1, activeStoryIndex));
-  const scene = RECOVERY_STORY_SCENES[safeIndex];
-
-  useEffect(() => {
-    setRecoveryStoryImageLoaded(false);
-  }, [safeIndex]);
-
-  const moveTo = (nextIndex) => {
-    setActiveStoryIndex(Math.max(0, Math.min(RECOVERY_STORY_SCENES.length - 1, nextIndex)));
-  };
-
-  return (
-    <View style={styles.recoveryStory} accessibilityLabel="康复旅程叙事画廊">
-      <View style={styles.recoveryStoryHeading}>
-        <View style={styles.recoveryStoryHeadingText}>
-          <Text style={styles.recoveryStoryEyebrow}>{scene.stage} · 第 {safeIndex + 1}/24 幕</Text>
-          <Text style={styles.recoveryStoryTitle}>{scene.title}</Text>
-        </View>
-        <Badge label="状态联动" tone="primary" />
-      </View>
-      <View style={styles.recoveryStoryFrame}>
-        {!recoveryStoryImageLoaded && (
-          <View style={styles.recoveryStoryPlaceholder}>
-            <Ionicons name="image-outline" size={24} color={C.faint} />
-            <Text style={styles.recoveryStoryPlaceholderText}>正在加载当前画面…</Text>
-          </View>
-        )}
-        <Image
-          key={scene.id}
-          source={scene.image}
-          resizeMode="cover"
-          accessibilityLabel={`康复叙事画面：${scene.title}`}
-          {...(Platform.OS === 'web'
-            ? { dataSet: { recoveryStoryScene: scene.id, recoveryStoryLoaded: recoveryStoryImageLoaded ? 'true' : 'false' } }
-            : { testID: `recovery-story-scene-${scene.id}` })}
-          onLoadStart={() => setRecoveryStoryImageLoaded(false)}
-          onLoad={() => setRecoveryStoryImageLoaded(true)}
-          style={[styles.recoveryStoryImage, !recoveryStoryImageLoaded && styles.recoveryStoryImageLoading]}
-        />
-      </View>
-      <Text style={styles.recoveryStoryCaption}>{scene.caption}</Text>
-      <Text style={styles.recoveryStoryLazyNote}>一次只加载当前一幕；评估和反馈会自动切换画面。</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recoveryStoryRail} contentContainerStyle={styles.recoveryStoryRailContent}>
-        {RECOVERY_STORY_SCENES.map((item, index) => (
-          <TouchableOpacity
-            key={item.id}
-            accessibilityLabel={`查看康复叙事第 ${index + 1} 幕：${item.title}`}
-            accessibilityRole="button"
-            accessibilityState={{ selected: index === safeIndex }}
-            onPress={() => moveTo(index)}
-            style={[styles.recoveryStoryChapter, index === safeIndex && styles.recoveryStoryChapterActive]}
-          >
-            <Text style={[styles.recoveryStoryChapterText, index === safeIndex && styles.recoveryStoryChapterTextActive]}>{item.id}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <View style={styles.recoveryStoryControls}>
-        <TouchableOpacity accessibilityLabel="上一幕" accessibilityRole="button" disabled={safeIndex === 0} onPress={() => moveTo(safeIndex - 1)} style={[styles.recoveryStoryControl, safeIndex === 0 && styles.recoveryStoryControlDisabled]}>
-          <Ionicons name="chevron-back" size={18} color={C.primaryDeep} />
-          <Text style={styles.recoveryStoryControlText}>上一幕</Text>
-        </TouchableOpacity>
-        <TouchableOpacity accessibilityLabel="下一幕" accessibilityRole="button" disabled={safeIndex === RECOVERY_STORY_SCENES.length - 1} onPress={() => moveTo(safeIndex + 1)} style={[styles.recoveryStoryControl, safeIndex === RECOVERY_STORY_SCENES.length - 1 && styles.recoveryStoryControlDisabled]}>
-          <Text style={styles.recoveryStoryControlText}>下一幕</Text>
-          <Ionicons name="chevron-forward" size={18} color={C.primaryDeep} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
 // 为紧凑型 Web 操作提供一致的 44px 触控面与清晰键盘焦点反馈。
 function FocusableTouchableOpacity({ children, style, onFocus, onBlur, ...props }) {
   const [focused, setFocused] = useState(false);
@@ -1174,7 +1075,6 @@ function RecoveryJourneyCard() {
   const [feedbackSaved, setFeedbackSaved] = useState(false);
   const [previousFeedback, setPreviousFeedback] = useState(null);
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
-  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
   const flagOptions = ['疼痛突然明显加重', '皮肤变色或明显肿胀', '呼吸困难或意识异常'];
   const previousFeedbackSummary = summarizePriorFeedback(previousFeedback);
 
@@ -1184,7 +1084,6 @@ function RecoveryJourneyCard() {
       if (!active) return;
       const storedFeedback = parseRecoveryFeedback(raw);
       setPreviousFeedback(storedFeedback);
-      if (storedFeedback) setActiveStoryIndex(19);
       setFeedbackLoaded(true);
     }).catch(() => {
       if (active) setFeedbackLoaded(true);
@@ -1200,7 +1099,6 @@ function RecoveryJourneyCard() {
   };
   const toggleFlag = (flag) => {
     setRedFlags((current) => current.includes(flag) ? current.filter((item) => item !== flag) : [...current, flag]);
-    setActiveStoryIndex(5);
     invalidateDecision();
   };
   const assess = () => {
@@ -1216,7 +1114,6 @@ function RecoveryJourneyCard() {
     setSelectedId(result.recommendation?.candidateId || result.candidates[0]?.id || '');
     setConfirmed(false);
     setFeedbackSaved(false);
-    setActiveStoryIndex(result.level === 'stop' ? 6 : result.priorFeedback.status === 'needs_review' ? 20 : result.level === 'review' ? 7 : 8);
   };
   const buildHandoff = () => buildRecoveryHandoff({
     evaluation,
@@ -1226,7 +1123,6 @@ function RecoveryJourneyCard() {
   });
   const exportHandoff = async () => {
     try {
-      setActiveStoryIndex(22);
       const handoff = buildHandoff();
       await saveOrShareFile({
         content: recoveryHandoffToText(handoff),
@@ -1253,7 +1149,6 @@ function RecoveryJourneyCard() {
       await Storage.setItem(RECOVERY_FEEDBACK_KEY, JSON.stringify(entry));
       setPreviousFeedback(entry);
       setFeedbackSaved(true);
-      setActiveStoryIndex(18);
     } catch (error) {
       Alert.alert('反馈保存失败', error.message || '请稍后重试。');
     }
@@ -1261,15 +1156,8 @@ function RecoveryJourneyCard() {
 
   return (
     <View>
-      <SectionHeader num="02" eyebrow="RECOVERY JOURNEY" eyebrowColor={C.primaryDeep} title="从今天的状态，到一份可复核结果" subtitle="输入真实状态，先看风险，再由你选择和确认" />
+      <SectionHeader num="02" eyebrow="SAFETY REVIEW" eyebrowColor={C.primaryDeep} title="今日安全复盘" subtitle="录入当前状态，保存反馈或导出交接单" />
       <Card style={styles.journeyCard}>
-        <RecoveryStoryGallery activeStoryIndex={activeStoryIndex} setActiveStoryIndex={setActiveStoryIndex} />
-        <View style={styles.journeyStageRow} accessibilityRole="tablist">
-          {['描述状态', '查看冲突', '选择确认', '导出回流'].map((label, index) => {
-            const activeIndex = !evaluation ? 0 : !confirmed ? (selectedId ? 2 : 1) : 3;
-            return <View key={label} style={[styles.journeyStage, index <= activeIndex && styles.journeyStageActive]}><Text style={[styles.journeyStageText, index <= activeIndex && styles.journeyStageTextActive]}>{index + 1}. {label}</Text></View>;
-          })}
-        </View>
         <View style={styles.journeyPriorFeedback}>
           <View style={styles.journeyPriorHeading}>
             <Ionicons name="refresh-circle-outline" size={20} color={C.primaryDeep} />
@@ -1286,15 +1174,15 @@ function RecoveryJourneyCard() {
             <Text style={styles.journeyPriorText}>暂无上次反馈；完成并保存后，下次打开或再次评估会从本机读取。</Text>
           )}
         </View>
-        <InputField label="今天想完成什么" icon="flag-outline" value={goal} onChangeText={(value) => { setGoal(value); setActiveStoryIndex(0); invalidateDecision(); }} placeholder="例如：按既有计划训练并记录反馈" />
+        <InputField label="今天想完成什么" icon="flag-outline" value={goal} onChangeText={(value) => { setGoal(value); invalidateDecision(); }} placeholder="例如：按既有计划训练并记录反馈" />
         <View style={styles.journeyTwoCol}>
-          <View style={styles.journeyCol}><InputField label="当前疼痛（0-10）" icon="pulse-outline" value={pain} onChangeText={(value) => { setPain(value); setActiveStoryIndex(2); invalidateDecision(); }} keyboardType="numeric" placeholder="0" /></View>
-          <View style={styles.journeyCol}><InputField label="可用时间（分钟）" icon="time-outline" value={availableMinutes} onChangeText={(value) => { setAvailableMinutes(value); setActiveStoryIndex(3); invalidateDecision(); }} keyboardType="numeric" placeholder="20" /></View>
+          <View style={styles.journeyCol}><InputField label="当前疼痛（0-10）" icon="pulse-outline" value={pain} onChangeText={(value) => { setPain(value); invalidateDecision(); }} keyboardType="numeric" placeholder="0" /></View>
+          <View style={styles.journeyCol}><InputField label="可用时间（分钟）" icon="time-outline" value={availableMinutes} onChangeText={(value) => { setAvailableMinutes(value); invalidateDecision(); }} keyboardType="numeric" placeholder="20" /></View>
         </View>
         <Text style={styles.inputLabel}>今天是否有可核验的已批准处方</Text>
         <View style={styles.chipRow}>
-          <Chip label="已有已批准处方" active={hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(true); setActiveStoryIndex(4); invalidateDecision(); }} />
-          <Chip label="没有或不确定" active={!hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(false); setActiveStoryIndex(4); invalidateDecision(); }} tone="amber" />
+          <Chip label="已有已批准处方" active={hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(true); invalidateDecision(); }} />
+          <Chip label="没有或不确定" active={!hasApprovedPrescription} onPress={() => { setHasApprovedPrescription(false); invalidateDecision(); }} tone="amber" />
         </View>
         <Text style={styles.inputLabel}>训练前异常信号</Text>
         <View style={styles.chipRow}>{flagOptions.map((flag) => <Chip key={flag} label={flag} active={redFlags.includes(flag)} tone="coral" onPress={() => toggleFlag(flag)} />)}</View>
@@ -1317,7 +1205,7 @@ function RecoveryJourneyCard() {
             </View>
             <Text style={styles.inputLabel}>选择下一步</Text>
             {evaluation.candidates.map((candidate) => (
-              <TouchableOpacity accessibilityLabel={`选择方案：${candidate.title}`} accessibilityRole="radio" accessibilityState={{ selected: selectedId === candidate.id }} key={candidate.id} onPress={() => { setSelectedId(candidate.id); setConfirmed(false); setFeedbackSaved(false); setActiveStoryIndex(candidate.id === 'contact_team' ? 21 : 9); }} style={[styles.journeyCandidate, selectedId === candidate.id && styles.journeyCandidateActive]}>
+              <TouchableOpacity accessibilityLabel={`选择方案：${candidate.title}`} accessibilityRole="radio" accessibilityState={{ selected: selectedId === candidate.id }} key={candidate.id} onPress={() => { setSelectedId(candidate.id); setConfirmed(false); setFeedbackSaved(false); }} style={[styles.journeyCandidate, selectedId === candidate.id && styles.journeyCandidateActive]}>
                 <Ionicons name={selectedId === candidate.id ? 'radio-button-on' : 'radio-button-off'} size={20} color={selectedId === candidate.id ? C.primaryDeep : C.faint} />
                 <View style={styles.journeyCandidateBody}>
                   <View style={styles.journeyCandidateHeading}>
@@ -1330,14 +1218,14 @@ function RecoveryJourneyCard() {
                 </View>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity accessibilityLabel="人工确认这个选择" accessibilityRole="checkbox" accessibilityState={{ checked: confirmed }} onPress={() => { const nextConfirmed = !confirmed; setConfirmed(nextConfirmed); if (nextConfirmed) setActiveStoryIndex(10); }} style={styles.journeyConfirm}>
+            <TouchableOpacity accessibilityLabel="人工确认这个选择" accessibilityRole="checkbox" accessibilityState={{ checked: confirmed }} onPress={() => setConfirmed((value) => !value)} style={styles.journeyConfirm}>
               <View style={[styles.checkbox, confirmed && styles.checkboxDone]}>{confirmed && <Ionicons name="checkmark" size={14} color={C.white} />}</View>
               <Text style={styles.journeyConfirmText}>人工确认这个选择；应用不会自动执行训练或替代专业意见</Text>
             </TouchableOpacity>
             <PrimaryButton disabled={!confirmed} label="导出今日交接单" icon="download-outline" onPress={exportHandoff} />
             <View style={styles.journeyFeedback}>
               <Text style={styles.inputLabel}>完成后的真实感受</Text>
-              <View style={styles.chipRow}>{['轻松', '适中', '疲劳', '出现不适'].map((item) => <Chip key={item} label={item} active={feeling === item} tone={item === '出现不适' ? 'coral' : undefined} onPress={() => { setFeeling(item); setFeedbackSaved(false); setActiveStoryIndex(item === '轻松' ? 15 : item === '疲劳' ? 16 : item === '出现不适' ? 17 : 14); }} />)}</View>
+              <View style={styles.chipRow}>{['轻松', '适中', '疲劳', '出现不适'].map((item) => <Chip key={item} label={item} active={feeling === item} tone={item === '出现不适' ? 'coral' : undefined} onPress={() => { setFeeling(item); setFeedbackSaved(false); }} />)}</View>
               <InputField label="补充反馈" icon="create-outline" value={feedbackNote} onChangeText={(value) => { setFeedbackNote(value); setFeedbackSaved(false); }} placeholder="只记录实际发生的情况" />
               <PrimaryButton disabled={!confirmed} tone="ghost" label="保存到下次复盘" icon="return-down-forward-outline" onPress={saveFeedback} />
               {feedbackSaved && <Text accessibilityLiveRegion="polite" style={styles.journeySaved}>反馈已进入下一次复盘</Text>}
@@ -1350,35 +1238,20 @@ function RecoveryJourneyCard() {
 }
 
 /* ============================ 工作台 ============================ */
-function WorkbenchScreen({ user, patients, devices, assessments, records, reports, tasks, setTasks, engagement, setEngagement, aiConfig, openFlow, goTab, onOpenAccount, isLocal }) {
+function WorkbenchScreen({ user, patients, devices, assessments, records, reports, tasks, setTasks, engagement, setEngagement, openFlow, openTraining, goTab, onOpenAccount, isLocal }) {
   const onlineDevices = devices.filter((d) => d.status === 'online').length;
-  const avgCompletion = records.length ? Math.round(records.reduce((sum, item) => sum + item.completion, 0) / records.length) : 0;
-  const latestScore = assessments[0] ? assessments[0].score : 0;
   const highTasks = tasks.filter((t) => t.priority === '高' && !t.done).length;
   const doneCount = tasks.filter((t) => t.done).length;
-  const recentScores = records.slice(0, 7).map((r) => r.score).reverse();
   const quickActions = [
-    { title: '新建评估', caption: '握力 · ROM · 疼痛', icon: 'clipboard-outline', gradient: G.primary, action: () => openFlow('assessment') },
-    { title: '处方草稿', caption: '提交专业人员审核', icon: 'medkit-outline', gradient: G.coral, action: () => openFlow('prescription') },
-    { title: '训练安全', caption: '症状自查与设备状态', icon: 'shield-checkmark-outline', gradient: G.amber, action: () => goTab('training') },
-    { title: '数据报告', caption: '趋势与归档', icon: 'document-text-outline', gradient: G.lavender, action: () => goTab('data') },
-    { title: '设备中心', caption: '手套 · 传感器', icon: 'hardware-chip-outline', gradient: G.sky, action: () => goTab('device') },
-    { title: '信息助手', caption: '整理记录 · 人工复核', icon: 'sparkles-outline', gradient: G.primaryDeep, action: () => goTab('ai') },
+    { title: '安全自查', caption: '先确认异常信号', icon: 'shield-checkmark-outline', gradient: G.coral, action: () => openTraining('game') },
+    { title: '患者建档', caption: '建立或维护档案', icon: 'person-add-outline', gradient: G.sky, action: () => openTraining('patients') },
+    { title: '新建评估', caption: '录入功能与疼痛', icon: 'clipboard-outline', gradient: G.primary, action: () => openFlow('assessment') },
+    { title: '训练中心', caption: '进入安全训练工具', icon: 'hand-left-outline', gradient: G.amber, action: () => openTraining('game') },
+    { title: '记录反馈', caption: '补录训练与完成情况', icon: 'create-outline', gradient: G.lavender, action: () => goTab('data') },
+    { title: '数据与交接', caption: '报告、趋势和交接单', icon: 'document-text-outline', gradient: G.primaryDeep, action: () => openFlow('report') },
   ];
   const toggleTask = (id) => setTasks((prev) => prev.map((item) => item.id === id ? { ...item, done: !item.done } : item));
-
-  // 康复打卡
   const eng = engagement || initialEngagement;
-  const checkedToday = eng.lastCheckIn === today;
-  const checkIn = () => {
-    if (checkedToday) { Alert.alert('今日已打卡', `已连续坚持 ${eng.streak} 天，继续保持！`); return; }
-    setEngagement((p) => {
-      const base = p || initialEngagement;
-      const cont = base.lastCheckIn === yesterday;
-      return { ...base, streak: cont ? (base.streak || 0) + 1 : 1, lastCheckIn: today, totalCheckIns: (base.totalCheckIns || 0) + 1 };
-    });
-  };
-  // 今日康复计划
   const planDone = eng.planDate === today ? (eng.planDone || []) : [];
   const togglePlan = (id) => setEngagement((p) => {
     const base = p || initialEngagement;
@@ -1387,15 +1260,6 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
     return { ...base, planDate: today, planDone: next };
   });
   const planPct = Math.round(planDone.length / DAILY_PLAN.length * 100);
-  // 成就徽章
-  const achievements = [
-    { id: 'streak', icon: 'flame', label: '坚持打卡', unlocked: (eng.streak || 0) >= 3, grad: G.coral },
-    { id: 'train', icon: 'barbell', label: '训练达人', unlocked: records.length >= 5, grad: G.amber },
-    { id: 'score', icon: 'ribbon', label: '高分选手', unlocked: records.some((r) => r.score >= 90), grad: G.primary },
-    { id: 'assess', icon: 'clipboard', label: '评估先锋', unlocked: assessments.length >= 2, grad: G.sky },
-    { id: 'ai', icon: 'sparkles', label: 'AI 体验', unlocked: aiConfigured(aiConfig), grad: G.lavender },
-  ];
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
@@ -1416,120 +1280,61 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
         )}
       </View>
 
-      {/* HERO */}
-      <View style={[styles.wbHero, SHADOW.hero]}>
-        <View style={styles.wbHeroInner}>
-          <View style={styles.wbHeroTopRow}>
-            <NumberedEyebrow num="01" label="今日守护" />
-            <Text style={styles.wbHeroDate}>{dateLabel} · {todayWeekday}</Text>
-          </View>
-
-          <View style={styles.wbHeroMain}>
-            <View style={styles.wbMedallion}>
-              <HeroMedallion size={150} pct={avgCompletion / 100} />
-            </View>
-            <View style={styles.wbHeroRight}>
-              <View style={styles.wbBigNumWrap}>
-                <AnimatedNumber value={avgCompletion} style={styles.wbBigNum} />
-                <Text style={styles.wbBigNumUnit}>%</Text>
-              </View>
-              <Text style={styles.wbBigNumLabel}>现有记录平均完成度</Text>
-              <View style={styles.wbTrendChip}>
-                <Ionicons name="analytics-outline" size={12} color={C.primaryDeep} />
-                <Text style={styles.wbTrendText}>{records.length >= 2 ? `较前次 ${records[0].score - records[1].score >= 0 ? '+' : ''}${records[0].score - records[1].score}` : '等待更多记录'}</Text>
-              </View>
+      <Card style={styles.wbStatusCard}>
+        <View style={styles.wbStatusHead}>
+          <View style={styles.wbStatusTitleRow}>
+            <View style={styles.wbStatusIcon}><Ionicons name="pulse-outline" size={19} color={C.primaryDeep} /></View>
+            <View style={styles.flex}>
+              <Text style={styles.wbStatusTitle}>今日工作状态</Text>
+              <Text style={styles.wbStatusCaption}>数据仅保存在当前工作区，按实际情况录入</Text>
             </View>
           </View>
-
-          <View style={styles.wbHeroSparkRow}>
-            <SparkLine values={recentScores.length ? recentScores : [0, 0]} color={C.primaryDeep} width={Math.max(160, APP_WIDTH - 220)} height={32} />
-            <View style={styles.wbHeroSparkInfo}>
-              <Text style={styles.wbHeroSparkBig}>{assessments.length ? latestScore : '—'}</Text>
-              <Text style={styles.wbHeroSparkSm}>最新评分</Text>
-            </View>
-          </View>
-
-          <View style={styles.wbHeroStats}>
-            <View style={styles.wbHeroStat}>
-              <Text style={styles.wbHeroStatNum}>{patients.length}</Text>
-              <Text style={styles.wbHeroStatLbl}>在管</Text>
-            </View>
-            <View style={styles.wbHeroStatDiv} />
-            <View style={styles.wbHeroStat}>
-              <Text style={styles.wbHeroStatNum}>{onlineDevices}</Text>
-              <Text style={styles.wbHeroStatLbl}>已连接设备</Text>
-            </View>
-            <View style={styles.wbHeroStatDiv} />
-            <View style={styles.wbHeroStat}>
-              <Text style={styles.wbHeroStatNum}>{highTasks}</Text>
-              <Text style={[styles.wbHeroStatLbl, { color: C.coralDeep }]}>待处理</Text>
-            </View>
-          </View>
+          <Badge label={highTasks ? `${highTasks} 项优先` : '状态正常'} tone={highTasks ? 'coral' : 'primary'} />
         </View>
-        <WaveDivider color={C.bg} height={30} />
+        <View style={styles.wbStatusMetrics}>
+          <View style={styles.wbStatusMetric}><Text style={styles.wbStatusValue}>{patients.length}</Text><Text style={styles.wbStatusLabel}>患者档案</Text></View>
+          <View style={styles.wbStatusDivider} />
+          <View style={styles.wbStatusMetric}><Text style={styles.wbStatusValue}>{records.length}</Text><Text style={styles.wbStatusLabel}>训练记录</Text></View>
+          <View style={styles.wbStatusDivider} />
+          <View style={styles.wbStatusMetric}><Text style={styles.wbStatusValue}>{onlineDevices}</Text><Text style={styles.wbStatusLabel}>在线设备</Text></View>
+          <View style={styles.wbStatusDivider} />
+          <View style={styles.wbStatusMetric}><Text style={styles.wbStatusValue}>{reports.length}</Text><Text style={styles.wbStatusLabel}>报告交接</Text></View>
+        </View>
+      </Card>
+
+      <SectionHeader num="01" eyebrow="TOOLS" eyebrowColor={C.primaryDeep} title="常用工具" subtitle="选择一项立即开始" />
+      <View style={styles.quickGrid}>
+        {quickActions.map((item) => (
+          <View key={item.title} style={styles.quickCardSlot}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title}，${item.caption}`}
+              onPress={item.action}
+              activeOpacity={0.76}
+              style={styles.quickCard}
+            >
+              <View style={styles.quickCardHead}>
+                <IconTile icon={item.icon} dim={42} gradient={item.gradient} />
+                <Ionicons name="arrow-forward-circle-outline" size={22} color={C.primaryDeep} />
+              </View>
+              <Text style={styles.quickTitle}>{item.title}</Text>
+              <Text style={styles.quickCaption} numberOfLines={2}>{item.caption}</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
       </View>
 
       <RecoveryJourneyCard />
 
-      {/* AI 信息整理入口 */}
-      <Appear delay={60}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="打开 AI 信息助手" activeOpacity={0.9} onPress={() => goTab('ai')} style={[styles.aiBanner, SHADOW.hero]}>
-          <LinearGradient colors={G.primaryDeep} start={GS} end={GE} style={StyleSheet.absoluteFill} />
-          <Svg width="100%" height="100%" viewBox="0 0 360 110" style={StyleSheet.absoluteFill} preserveAspectRatio="xMidYMid slice">
-            <Defs>
-              <SvgRG id="aiBannerBlob" cx="0.85" cy="0.2" r="0.6">
-                <Stop offset="0" stopColor="#1FD09B" stopOpacity="0.45" />
-                <Stop offset="1" stopColor="#1FD09B" stopOpacity="0" />
-              </SvgRG>
-            </Defs>
-            <Rect width="360" height="110" fill="url(#aiBannerBlob)" />
-            <Circle cx="320" cy="22" r="48" stroke="#FFFFFF" strokeOpacity="0.12" strokeWidth="1" fill="none" />
-          </Svg>
-          <View style={styles.aiBannerIcon}><Ionicons name="sparkles" size={24} color={C.white} /></View>
-          <View style={styles.flex}>
-            <View style={styles.aiBannerTagRow}>
-              <Text style={styles.aiBannerTag}>NEW</Text>
-              <Text style={styles.aiBannerEyebrow}>AI 信息助手</Text>
-            </View>
-            <Text style={styles.aiBannerTitle}>整理已有记录，形成待复核摘要</Text>
-            <Text style={styles.aiBannerSub}>{aiConfigured(aiConfig) ? '已连接你的模型 · 输出不会自动发布' : '连接模型后使用 · 不提供自动诊断'}</Text>
-          </View>
-          <Ionicons name="arrow-forward-circle" size={26} color="rgba(255,255,255,0.92)" />
-        </TouchableOpacity>
-      </Appear>
-
-      {/* 康复打卡 streak */}
-      <Appear delay={110}>
-        <Card style={styles.streakCard}>
-          <LinearGradient colors={checkedToday ? G.coral : ['#F0F4F1', '#F0F4F1']} start={GS} end={GE} style={styles.streakFlame}>
-            <Ionicons name="flame" size={24} color={checkedToday ? C.white : C.faint} />
-          </LinearGradient>
-          <View style={[styles.flex, { marginLeft: 14 }]}>
-            <View style={styles.streakNumRow}>
-              <Text style={styles.streakNum}>{eng.streak || 0}</Text>
-              <Text style={styles.streakUnit}>天</Text>
-            </View>
-            <Text style={styles.streakLabel}>连续康复打卡 · 累计 {eng.totalCheckIns || 0} 次</Text>
-          </View>
-          <FocusableTouchableOpacity accessibilityRole="button" accessibilityLabel={checkedToday ? '今日康复打卡已完成' : '记录今日康复打卡'} accessibilityHint={checkedToday ? '今日打卡已经记录' : '记录今天的康复打卡'} accessibilityState={{ disabled: checkedToday }} activeOpacity={0.85} onPress={checkIn} disabled={checkedToday} style={styles.streakBtnWrap}>
-            <LinearGradient colors={checkedToday ? ['#E0E6E1', '#E0E6E1'] : G.primaryDeep} start={GS} end={GE} style={styles.streakBtn}>
-              <Ionicons name={checkedToday ? 'checkmark-done' : 'flame-outline'} size={15} color={checkedToday ? C.muted : C.white} />
-              <Text style={[styles.streakBtnText, checkedToday && { color: C.muted }]}>{checkedToday ? '已打卡' : '打卡'}</Text>
-            </LinearGradient>
-          </FocusableTouchableOpacity>
-        </Card>
-      </Appear>
-
-      {/* 今日康复计划 */}
       <Appear delay={150}>
-        <SectionHeader num="02" eyebrow="TODAY PLAN" eyebrowColor={C.primaryDeep} title="今日康复计划" subtitle={`已完成 ${planDone.length} / ${DAILY_PLAN.length} 项`} />
+        <SectionHeader num="03" eyebrow="CHECKLIST" eyebrowColor={C.primaryDeep} title="今日工作清单" subtitle={`已完成 ${planDone.length} / ${DAILY_PLAN.length} 项`} />
         <Card style={styles.planCard}>
           <View style={styles.planHead}>
             <View style={styles.planRingWrap}>
               <ArcMini size={48} pct={planPct / 100} color={C.primary} strokeWidth={5} />
               <Text style={styles.planRingText}>{planPct}%</Text>
             </View>
-            <Text style={styles.planHeadText}>{planPct >= 100 ? '今日计划已全部完成，太棒了！' : '完成每日小目标，让康复稳步推进'}</Text>
+            <Text style={styles.planHeadText}>{planPct >= 100 ? '今日清单已完成' : '按顺序完成安全确认、训练与记录'}</Text>
           </View>
           {DAILY_PLAN.map((item, idx) => {
             const done = planDone.includes(item.id);
@@ -1547,11 +1352,14 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
         </Card>
       </Appear>
 
-      <SectionHeader num="03" eyebrow="PATIENTS" title="重点患者" subtitle="今日需要关注的康复进度" action="全部" onAction={() => goTab('training')} />
+      <SectionHeader num="04" eyebrow="PATIENTS" title="患者档案" subtitle="查看当前档案与最新状态" action="全部" onAction={() => openTraining('patients')} />
+      {!patients.length && <EmptyState icon="people-outline" title="暂无患者档案" caption="建立档案后即可关联评估、训练记录和交接资料。" action="建立档案" onAction={() => openTraining('patients')} />}
       {patients[0] && <FeaturedPatient patient={patients[0]} assessments={assessments} records={records} />}
       {patients.slice(1).map((patient) => <PatientRow key={patient.id} patient={patient} />)}
 
-      <SectionHeader num="04" eyebrow="TODAY" eyebrowColor={C.coralDeep} title="今日任务" subtitle={`已完成 ${doneCount} / ${tasks.length}`} />
+      <SectionHeader num="05" eyebrow="TASKS" eyebrowColor={C.coralDeep} title="待处理事项" subtitle={`已完成 ${doneCount} / ${tasks.length}`} />
+      {!tasks.length && <EmptyState icon="checkmark-done-outline" title="暂无待处理事项" caption="需要复核的任务会显示在这里。" />}
+      {!!tasks.length && (
       <Card style={styles.listCard}>
         {tasks.map((task, index) => {
           const tone = task.priority === '高' ? 'coral' : task.priority === '中' ? 'amber' : 'primary';
@@ -1567,48 +1375,7 @@ function WorkbenchScreen({ user, patients, devices, assessments, records, report
           );
         })}
       </Card>
-
-      <SectionHeader num="05" eyebrow="QUICK FLOW" eyebrowColor={C.amberDeep} title="快捷操作" subtitle="常用工作流一键开始" />
-      <View style={styles.quickGrid}>
-        {quickActions.map((item, idx) => (
-          <Pressable key={item.title} accessibilityLabel={`${item.title}，${item.caption}`} onPress={item.action} style={styles.quickCard}>
-            <View style={styles.quickCardHead}>
-              <IconTile icon={item.icon} dim={44} gradient={item.gradient} />
-              <Text style={styles.quickNum}>{String(idx + 1).padStart(2, '0')}</Text>
-            </View>
-            <Text style={styles.quickTitle}>{item.title}</Text>
-            <Text style={styles.quickCaption}>{item.caption}</Text>
-            <View style={styles.quickArrow}>
-              <Ionicons name="arrow-forward" size={14} color={C.primaryDeep} />
-            </View>
-          </Pressable>
-        ))}
-      </View>
-
-      <SectionHeader num="06" eyebrow="ACHIEVEMENTS" eyebrowColor={'#5E418A'} title="康复成就" subtitle={`已解锁 ${unlockedCount} / ${achievements.length} 枚徽章`} />
-      <Card style={styles.achCard}>
-        <View style={styles.achRow}>
-          {achievements.map((a) => <AchievementBadge key={a.id} icon={a.icon} label={a.label} unlocked={a.unlocked} grad={a.grad} />)}
-        </View>
-      </Card>
-
-      <SectionHeader num="07" eyebrow="KNOWLEDGE" eyebrowColor={C.amberDeep} title="康复小知识" subtitle="每日一条 · 科学康复" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.knowScroll}>
-        {KNOWLEDGE_CARDS.map((k) => (
-          <View key={k.id} style={styles.knowCard}>
-            <View style={styles.knowHead}>
-              <IconTile icon={k.icon} dim={36} size={17} gradient={k.grad} />
-              <View style={styles.knowTag}><Text style={styles.knowTagText}>{k.tag}</Text></View>
-            </View>
-            <Text style={styles.knowTitle}>{k.title}</Text>
-            <Text style={styles.knowBody}>{k.body}</Text>
-            <FocusableTouchableOpacity accessibilityRole="link" accessibilityLabel={`查看来源：${k.sourceLabel}`} accessibilityHint="在新窗口打开外部循证资料" activeOpacity={0.7} onPress={() => Linking.openURL(k.sourceUrl)} style={styles.knowSource}>
-              <Text style={styles.knowSourceText}>{k.sourceLabel}</Text>
-              <Ionicons name="open-outline" size={13} color={C.primaryDeep} />
-            </FocusableTouchableOpacity>
-          </View>
-        ))}
-      </ScrollView>
+      )}
     </ScrollView>
   );
 }
@@ -1795,8 +1562,9 @@ function DeviceCard({ device, onToggle, onSync, onRemove }) {
 }
 
 /* ============================ 训练 ============================ */
-function TrainingScreen({ patients, setPatients, assessments, setAssessments, prescriptions, setPrescriptions, records, setRecords, consentActive, onAudit }) {
-  const [subTab, setSubTab] = useState('patients');
+function TrainingScreen({ patients, setPatients, assessments, setAssessments, prescriptions, setPrescriptions, records, setRecords, consentActive, onAudit, initialSubTab = 'patients' }) {
+  const [subTab, setSubTab] = useState(initialSubTab);
+  useEffect(() => setSubTab(initialSubTab), [initialSubTab]);
   const tabItems = [
     { key: 'patients', label: '患者', icon: 'people-outline' },
     { key: 'assessment', label: '评估', icon: 'clipboard-outline' },
@@ -1904,7 +1672,7 @@ function AssessmentPanel({ patients, assessments, setAssessments, consentActive,
         return (
           <Card key={item.id} style={styles.itemCard}>
             <View style={styles.itemTopLine}>
-              <View style={styles.flex}><Text style={styles.cardTitle}>{item.patient}</Text><Text style={styles.cardMeta}>{item.date} · 未验证旧版汇总分</Text></View>
+              <View style={styles.flex}><Text style={styles.cardTitle}>{item.patient}</Text><Text style={styles.cardMeta}>{item.date} · 人工汇总分（非标准量表）</Text></View>
               <View style={[styles.scoreMedallionWrap, { backgroundColor: tone.bg }]}>
                 <ArcMini size={64} pct={item.score / 100} color={tone.fg} track={tone.fg + '20'} strokeWidth={5} />
                 <View style={styles.scoreMedallionTextWrap}>
@@ -1922,7 +1690,7 @@ function AssessmentPanel({ patients, assessments, setAssessments, consentActive,
           </Card>
         );
       })}
-      <ModalSheet visible={showAdd} title="录入基础测量" subtitle="保留原始数值；汇总分为未验证旧版算法，不替代标准化评估" onClose={() => setShowAdd(false)}>
+      <ModalSheet visible={showAdd} title="录入基础测量" subtitle="保留原始数值；人工汇总分不替代标准化专业评估" onClose={() => setShowAdd(false)}>
         <Text style={styles.inputLabel}>患者</Text>
         <View style={styles.chipRow}>{patients.map((patient) => <Chip key={patient.id} label={patient.name} active={form.patient === patient.name} onPress={() => setForm((p) => ({ ...p, patient: patient.name }))} />)}</View>
         <InputField label="握力 kg" icon="barbell-outline" value={form.grip} onChangeText={(v) => setForm((p) => ({ ...p, grip: v }))} keyboardType="numeric" placeholder="例如 20" />
@@ -2415,7 +2183,7 @@ function ProfileScreen({
             <Text style={styles.profileHeroName}>{user.name}</Text>
             <View style={styles.profileHeroTagRow}>
               <View style={styles.profileHeroTag}><Text style={styles.profileHeroTagText}>{user.role}</Text></View>
-              <Text style={styles.profileHeroEmail}>健康守护者 v1.0</Text>
+              <Text style={styles.profileHeroEmail}>健康守护者 v1.1.0</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.profileEditBtn} activeOpacity={0.8} onPress={() => setShowEdit(true)}>
@@ -2473,13 +2241,13 @@ function ProfileScreen({
         <ProfileMenu icon="trash-outline" tone="coral" title={isLocal ? '清除本机数据' : '注销账号与删除数据'} caption={isLocal ? '删除这台设备保存的工作区数据' : '删除当前账号和关联数据'} onPress={confirmDeleteAccount} danger last={isLocal} />
         {!isLocal && <ProfileMenu icon="log-out-outline" tone="coral" title="退出登录" caption="退出当前账号" onPress={onLogout} danger last />}
       </Card>
-      <Text style={styles.versionText}>健康守护者　版本 1.0.0</Text>
+      <Text style={styles.versionText}>健康守护者　版本 1.1.0</Text>
 
       <ModalSheet visible={showEdit} title="编辑资料" subtitle="资料会用于工作台和个人中心展示" onClose={() => setShowEdit(false)}>
         <InputField label="姓名" icon="person-outline" value={draft.name} onChangeText={(v) => setDraft((p) => ({ ...p, name: v }))} placeholder="姓名" />
         <PrimaryButton label="保存资料" icon="checkmark" onPress={saveProfile} />
       </ModalSheet>
-      <ModalSheet visible={showAbout} title="关于健康守护者" subtitle="版本 1.0.0" onClose={() => setShowAbout(false)}>
+      <ModalSheet visible={showAbout} title="关于健康守护者" subtitle="版本 1.1.0" onClose={() => setShowAbout(false)}>
         <View style={styles.aboutMark}>
           <HeroMedallion size={110} pct={0.78} />
           <Text style={styles.aboutName}>健康守护者</Text>
@@ -2913,7 +2681,7 @@ function QuickFlowModal({ flow, patients, onClose, addAssessment, addPrescriptio
   }, [flow, patients]);
   if (!flow) return null;
   const config = flow === 'assessment'
-    ? { title: '记录旧版汇总分', subtitle: '该分数不是标准化量表，仅用于迁移既有记录', label: '未验证汇总分', placeholder: '0-100', button: '保存记录', icon: 'clipboard-outline' }
+    ? { title: '新建评估记录', subtitle: '记录当前功能状态；人工汇总分不替代标准化专业评估', label: '功能状态评分（0-100）', placeholder: '0-100', button: '保存评估', icon: 'clipboard-outline' }
     : flow === 'prescription'
       ? { title: '新建处方草稿', subtitle: '草稿不会自动批准、发布或执行', label: '建议时长（分钟）', placeholder: '15', button: '保存草稿', icon: 'medkit-outline' }
       : { title: '新建报告草稿', subtitle: '根据人工录入内容建立草稿，不冒充正式报告文件', label: '报告标题', placeholder: '阶段康复记录', button: '保存草稿', icon: 'document-text-outline' };
@@ -2922,7 +2690,7 @@ function QuickFlowModal({ flow, patients, onClose, addAssessment, addPrescriptio
     if (!patient) { Alert.alert('请先建立患者档案', '患者档案用于关联记录并避免把数据保存到错误对象。'); return; }
     if (flow === 'assessment') {
       const score = clamp(Number(value || 0), 0, 100);
-      addAssessment({ id: uid('a'), patient, date: today, grip: null, rom: null, pain: null, adl: null, score, note: note || '迁移录入的未验证旧版汇总分。', instrument: 'legacy_unvalidated_composite', source: 'manual_entry' });
+      addAssessment({ id: uid('a'), patient, date: today, grip: null, rom: null, pain: null, adl: null, score, note: note || '人工录入的非标准汇总分。', instrument: 'legacy_unvalidated_composite', source: 'manual_entry' });
     } else if (flow === 'prescription') {
       addPrescription({ id: uid('rx'), patient, title: '康复训练草稿', intensity: '待专业人员确认', frequency: '待专业人员确认', duration: (value || 15) + ' 分钟', status: '草稿', focus: note || '待补充', source: 'manual_draft', version: 1, createdAt: new Date().toISOString() });
     } else {
@@ -2984,6 +2752,7 @@ export default function App() {
   const [cloudReady, setCloudReady] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [activeTab, setActiveTab] = useState('workbench');
+  const [trainingEntry, setTrainingEntry] = useState('patients');
   const [patients, setPatients] = useState([]);
   const [devices, setDevices] = useState([]);
   const [assessments, setAssessments] = useState([]);
@@ -3270,10 +3039,10 @@ export default function App() {
   const renderScreen = () => {
     if (activeTab === 'device') return <DeviceScreen devices={devices} setDevices={setDevices} onBack={() => setActiveTab('workbench')} />;
     if (activeTab === 'ai') return <AIDoctorScreen aiConfig={aiConfig} setAiConfig={updateAiConfig} patients={patients} assessments={assessments} records={records} prescriptions={prescriptions} aiRuns={aiRuns} setAiRuns={setAiRuns} onAudit={appendAudit} consentActive={consentActive} />;
-    if (activeTab === 'training') return <TrainingScreen patients={patients} setPatients={setPatients} assessments={assessments} setAssessments={setAssessments} prescriptions={prescriptions} setPrescriptions={setPrescriptions} records={records} setRecords={setRecords} consentActive={consentActive} onAudit={appendAudit} />;
+    if (activeTab === 'training') return <TrainingScreen patients={patients} setPatients={setPatients} assessments={assessments} setAssessments={setAssessments} prescriptions={prescriptions} setPrescriptions={setPrescriptions} records={records} setRecords={setRecords} consentActive={consentActive} onAudit={appendAudit} initialSubTab={trainingEntry} />;
     if (activeTab === 'data') return <DataScreen records={records} setRecords={setRecords} reports={reports} setReports={setReports} storage={storage} assessments={assessments} patients={patients} onAudit={appendAudit} consentActive={consentActive} />;
     if (activeTab === 'profile') return <ProfileScreen user={user || DEFAULT_WORKSPACE_USER} setUser={setUser} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} onUpdateUser={handleUpdateUser} aiConfig={aiConfig} setAiConfig={updateAiConfig} isLocal={token === WORKSPACE_TOKEN} consentActive={consentActive} privacyVersion={PRIVACY_VERSION} onGrantConsent={handleGrantConsent} onWithdrawConsent={handleWithdrawConsent} auditEvents={auditEvents} outbox={outbox} syncConflicts={syncConflicts} onExportPersonalData={handlePersonalExport} onResolveConflict={handleResolveConflict} />;
-    return <WorkbenchScreen user={user || DEFAULT_WORKSPACE_USER} patients={patients} devices={devices} assessments={assessments} records={records} reports={reports} tasks={tasks} setTasks={setTasks} engagement={engagement} setEngagement={setEngagement} aiConfig={aiConfig} openFlow={setFlow} goTab={setActiveTab} onOpenAccount={() => setShowAuth(true)} isLocal={token === WORKSPACE_TOKEN} />;
+    return <WorkbenchScreen user={user || DEFAULT_WORKSPACE_USER} patients={patients} devices={devices} assessments={assessments} records={records} reports={reports} tasks={tasks} setTasks={setTasks} engagement={engagement} setEngagement={setEngagement} openFlow={setFlow} openTraining={(target) => { setTrainingEntry(target); setActiveTab('training'); }} goTab={setActiveTab} onOpenAccount={() => setShowAuth(true)} isLocal={token === WORKSPACE_TOKEN} />;
   };
 
   return (
@@ -3311,28 +3080,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   screenContent: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 120 },
   journeyCard: { padding: 16, marginBottom: 22 },
-  recoveryStory: { minWidth: 0, backgroundColor: C.bgSoft, borderWidth: 1, borderColor: C.border, borderRadius: 18, padding: 12, marginBottom: 16, overflow: 'hidden' },
-  recoveryStoryHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 10 },
-  recoveryStoryHeadingText: { flex: 1, minWidth: 0 },
-  recoveryStoryEyebrow: { color: C.primaryDeep, fontSize: 10.5, lineHeight: 15, fontWeight: '900', letterSpacing: 0.6 },
-  recoveryStoryTitle: { color: C.ink, fontSize: 17, lineHeight: 23, fontWeight: '900', marginTop: 2 },
-  recoveryStoryFrame: { position: 'relative', width: '100%', maxWidth: '100%', aspectRatio: 1.5, borderRadius: 14, backgroundColor: C.surfaceMuted, overflow: 'hidden' },
-  recoveryStoryPlaceholder: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surfaceMuted },
-  recoveryStoryPlaceholderText: { color: C.faint, fontSize: 11.5, fontWeight: '700', marginTop: 6 },
-  recoveryStoryImage: { width: '100%', height: '100%' },
-  recoveryStoryImageLoading: { opacity: 0 },
-  recoveryStoryCaption: { color: C.inkSoft, fontSize: 12.5, lineHeight: 19, fontWeight: '700', marginTop: 10 },
-  recoveryStoryLazyNote: { color: C.faint, fontSize: 10.5, lineHeight: 16, marginTop: 3 },
-  recoveryStoryRail: { width: '100%', maxWidth: '100%', marginTop: 10 },
-  recoveryStoryRailContent: { alignItems: 'center', paddingRight: 4 },
-  recoveryStoryChapter: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, marginRight: 6 },
-  recoveryStoryChapterActive: { backgroundColor: C.primaryDeep, borderColor: C.primaryDeep },
-  recoveryStoryChapterText: { color: C.muted, fontSize: 11.5, fontWeight: '900' },
-  recoveryStoryChapterTextActive: { color: C.white },
-  recoveryStoryControls: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginTop: 10 },
-  recoveryStoryControl: { flex: 1, minWidth: 0, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: C.surface, paddingHorizontal: 10 },
-  recoveryStoryControlDisabled: { opacity: 0.42 },
-  recoveryStoryControlText: { color: C.primaryDeep, fontSize: 12, fontWeight: '900' },
   journeyStageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   journeyStage: { backgroundColor: C.surfaceMuted, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 7 },
   journeyStageActive: { backgroundColor: C.primaryTint },
@@ -3423,6 +3170,18 @@ const styles = StyleSheet.create({
   authEntry: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.primaryTint, borderWidth: 1, borderColor: '#BFDCD5', borderRadius: 14, paddingHorizontal: 11, minWidth: 44, height: 44 },
   authEntryText: { color: C.primaryDeep, fontSize: 12, fontWeight: '800', marginLeft: 5 },
 
+  wbStatusCard: { padding: 14, marginBottom: 4 },
+  wbStatusHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.divider },
+  wbStatusTitleRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', marginRight: 10 },
+  wbStatusIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: C.primaryTint, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  wbStatusTitle: { color: C.ink, fontSize: 15.5, lineHeight: 20, fontWeight: '900' },
+  wbStatusCaption: { color: C.muted, fontSize: 10.5, lineHeight: 15, marginTop: 2 },
+  wbStatusMetrics: { flexDirection: 'row', alignItems: 'center', paddingTop: 12 },
+  wbStatusMetric: { flex: 1, minWidth: 0, alignItems: 'center' },
+  wbStatusValue: { color: C.ink, fontSize: 20, lineHeight: 23, fontWeight: '900' },
+  wbStatusLabel: { color: C.muted, fontSize: 10, lineHeight: 14, fontWeight: '700', marginTop: 2, textAlign: 'center' },
+  wbStatusDivider: { width: 1, height: 26, backgroundColor: C.divider },
+
   /* hero card */
   wbHero: { borderRadius: 26, backgroundColor: C.surfaceWarm, borderWidth: 1, borderColor: C.border, marginBottom: 22, overflow: 'hidden' },
   wbHeroInner: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4 },
@@ -3467,11 +3226,12 @@ const styles = StyleSheet.create({
 
   /* quick grid */
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  quickCard: { width: Platform.OS === 'web' ? '48.5%' : cardW, backgroundColor: C.surface, borderRadius: 20, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 12, position: 'relative', overflow: 'hidden', minHeight: 140, ...SHADOW.card },
+  quickCardSlot: { width: Platform.OS === 'web' ? '48.5%' : cardW, flexBasis: Platform.OS === 'web' ? '48.5%' : cardW, flexGrow: 0, flexShrink: 0, minWidth: 0, minHeight: 116, marginBottom: 10, backgroundColor: C.surface, borderRadius: 18, borderWidth: 1, borderColor: C.border, overflow: 'hidden', ...SHADOW.card },
+  quickCard: { flex: 1, width: '100%', padding: 14, position: 'relative', minHeight: 104 },
   quickCardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   quickNum: { fontSize: 26, color: C.border, fontWeight: '900', letterSpacing: 0.5 },
-  quickTitle: { fontSize: 16, fontWeight: '800', color: C.ink, marginTop: 12 },
-  quickCaption: { fontSize: 12, color: C.muted, marginTop: 3 },
+  quickTitle: { fontSize: 15, lineHeight: 19, fontWeight: '900', color: C.ink, marginTop: 9 },
+  quickCaption: { fontSize: 11, lineHeight: 16, color: C.muted, marginTop: 2, paddingRight: 2 },
   quickArrow: { position: 'absolute', bottom: 14, right: 16, width: 28, height: 28, borderRadius: 14, backgroundColor: C.primaryTint, alignItems: 'center', justifyContent: 'center' },
 
   /* badge */

@@ -11,12 +11,12 @@
 新的 Android 构建已经完成：
 
 - Google Play AAB：`92e84ac2-c9fe-428e-beb8-af6e23023a09`
-- 正式直装 APK：`57365df0-b4dc-41e8-80db-363e249f47f7`（版本 `1.1.0`，构建号 `13`）
+- 正式直装 APK：`b3775202-b534-4d23-8e81-79044275dac2`（版本 `1.1.0`，构建号 `16`）
 
 构建页面：
 
 - https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/92e84ac2-c9fe-428e-beb8-af6e23023a09
-- https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/57365df0-b4dc-41e8-80db-363e249f47f7
+- https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/b3775202-b534-4d23-8e81-79044275dac2
 
 构建完成后：
 
@@ -26,7 +26,7 @@
 本地文件：
 
 - `release/jiankang-shouhuzhe-production.aab`
-- `release/HealthGuardian-1.1.0-Android.apk`
+- `release/HealthGuardian-v1.1.0-android.apk`
 
 正式 APK 的 SHA256、签名、权限和设备验证边界见 `release/latest-android-apk-build.md`。
 

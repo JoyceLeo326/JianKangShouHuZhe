@@ -1,14 +1,14 @@
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 
 const root = path.resolve(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'App.js'), 'utf8');
 const server = fs.readFileSync(path.join(root, 'server', 'index.js'), 'utf8');
 const db = fs.readFileSync(path.join(root, 'server', 'db.js'), 'utf8');
 const recoveryDomain = fs.readFileSync(path.join(root, 'src', 'domain', 'recovery-journey.js'), 'utf8');
-const recoveryStoryDir = path.join(root, 'assets', 'recovery-story');
 const recoveryWebCheck = fs.readFileSync(path.join(root, 'scripts', 'recovery-journey-web-check.js'), 'utf8');
+const workbenchSource = app.slice(app.indexOf('function WorkbenchScreen'), app.indexOf('function FeaturedPatient'));
+const recoveryToolSource = app.slice(app.indexOf('function RecoveryJourneyCard'), app.indexOf('/* ============================ 工作台'));
 const trackedPublicFiles = require('child_process')
   .execFileSync('git', ['ls-files', '-z'], { cwd: root })
   .toString('utf8')
@@ -89,13 +89,41 @@ for (const contract of [
   'function FocusableTouchableOpacity',
   'styles.keyboardFocus',
   '登录或注册健康守护者账号',
-  '记录今日康复打卡',
-  '查看来源：${k.sourceLabel}',
   "height: 44",
   'minWidth: 44, minHeight: 44',
 ]) {
   assert(app.includes(contract), `the compact mobile accessibility repair is missing: ${contract}`);
 }
+
+for (const contract of [
+  '今日工作状态',
+  '常用工具',
+  '安全自查',
+  '患者建档',
+  '新建评估',
+  '训练中心',
+  '记录反馈',
+  '数据与交接',
+  "openTraining('game')",
+]) {
+  assert(workbenchSource.includes(contract), `the tool-first workbench is missing: ${contract}`);
+}
+assert(
+  workbenchSource.indexOf('常用工具') < workbenchSource.indexOf('<RecoveryJourneyCard'),
+  'core tools must appear before the safety review form',
+);
+for (const retiredDefaultModule of [
+  '<RecoveryStoryGallery',
+  'aiBanner',
+  '>NEW<',
+  '康复成就',
+  '康复小知识',
+  'streakCard',
+]) {
+  assert(!workbenchSource.includes(retiredDefaultModule), `the default workbench still exposes narrative or promotional UI: ${retiredDefaultModule}`);
+}
+assert(!recoveryToolSource.includes('<RecoveryStoryGallery'), 'the safety review must open as a form, not a story gallery');
+assert(app.includes('quickCard: {') && app.includes('minHeight: 104'), 'mobile tool cards must provide a generous touch surface');
 for (const contract of ['interactiveSelector', 'repairedControlLabels', 'inspectKeyboardAccess', 'layout.unnamed', 'layout.navigationCount === 5']) {
   assert(recoveryWebCheck.includes(contract), `the broad mobile interaction gate is missing: ${contract}`);
 }
@@ -103,24 +131,8 @@ for (const contract of ["name: 'desktop'", 'width: 1440', 'height: 900']) {
   assert(recoveryWebCheck.includes(contract), `the desktop recovery journey gate is missing: ${contract}`);
 }
 
-const recoveryStoryFiles = fs.readdirSync(recoveryStoryDir).filter((name) => name.endsWith('.webp')).sort();
-assert(recoveryStoryFiles.length === 24, `the recovery story must contain exactly 24 WebP scenes, found ${recoveryStoryFiles.length}`);
-const storyHashes = recoveryStoryFiles.map((name) => crypto.createHash('sha256').update(fs.readFileSync(path.join(recoveryStoryDir, name))).digest('hex'));
-assert(new Set(storyHashes).size === 24, 'every recovery story scene must be an independent image');
-for (const [index, name] of recoveryStoryFiles.entries()) {
-  assert(name.startsWith(String(index + 1).padStart(2, '0')), `recovery story scene numbering is incomplete at ${name}`);
-  assert(app.includes(`./assets/recovery-story/${name}`), `the recovery UI does not reference scene: ${name}`);
-}
-for (const contract of [
-  'function RecoveryStoryGallery',
-  'activeStoryIndex',
-  'setActiveStoryIndex',
-  'recoveryStoryImageLoaded',
-  'onLoadStart',
-  'onLoad',
-]) {
-  assert(app.includes(contract), `the state-bound lazy recovery story is missing: ${contract}`);
-}
+assert(!app.includes('RECOVERY_STORY_SCENES'), 'the installed app must not bundle the retired story gallery');
+assert(!app.includes('康复旅程叙事画廊'), 'the installed app must open as a tool, not a narrated walkthrough');
 
 for (const phrase of ['无需登录', '无需注册', '零成本', '本地演示', '演示账号', 'AI 康复博士', '智能康复博士']) {
   for (const [sourceName, source] of [['App.js', app], ['src/domain/recovery-journey.js', recoveryDomain]]) {

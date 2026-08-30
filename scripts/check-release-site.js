@@ -237,8 +237,8 @@ async function runRecoveryPersistence(page) {
   await page.send('Page.reload', { ignoreCache: true });
   await waitForExpression(
     page,
-    `document.body.innerText.includes('从今天的状态，到一份可复核结果')`,
-    'The full recovery journey did not load.',
+    `document.body.innerText.includes('今日工作状态') && document.body.innerText.includes('常用工具') && document.body.innerText.includes('今日安全复盘')`,
+    'The tool-first workbench did not load.',
   );
   await clickAccessible(page, '已有已批准处方');
   await clickAccessible(page, '评估风险与候选');
@@ -284,6 +284,7 @@ async function main() {
     const page = await openPage(debugPort, `${baseUrl}/`);
     const results = [];
     for (const viewport of [
+      { name: 'compact', width: 320, height: 720, scale: 2 },
       { name: 'mobile', width: 390, height: 844, scale: 2 },
       { name: 'desktop', width: 1440, height: 900, scale: 1 },
     ]) {
@@ -302,16 +303,35 @@ async function main() {
       await saveScreenshot(page, `${viewport.name}-product-root.png`);
 
       await navigate(page, `${baseUrl}/app/`);
-      await waitForExpression(page, `document.body.innerText.includes('从今天的状态，到一份可复核结果')`, 'Complete app did not render under /app/.');
+      await waitForExpression(page, `document.body.innerText.includes('今日工作状态') && document.body.innerText.includes('常用工具')`, 'Complete tool workspace did not render under /app/.');
       const appAudit = await page.evaluate(pageAuditExpression);
       assertPageAudit(appAudit, `${viewport.name} full app`, '健康守护者');
       assert(appAudit.manifest === '/manifest.webmanifest', 'Full app does not expose the shared PWA manifest.');
+      const toolLayout = await page.evaluate(`(() => {
+        const names = ['安全自查', '患者建档', '新建评估', '训练中心', '记录反馈', '数据与交接'];
+        const cards = Array.from(document.querySelectorAll('[role="button"]')).filter((element) => names.some((name) => (element.getAttribute('aria-label') || '').startsWith(name)));
+        return cards.map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { label: element.getAttribute('aria-label'), left: rect.left, top: rect.top, width: rect.width, height: rect.height, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight };
+        });
+      })()`);
+      assert(toolLayout.length === 6, `${viewport.name} expected six primary tool cards, found ${toolLayout.length}.`);
+      if (viewport.width < 720) {
+        const rowTops = [...new Set(toolLayout.map((item) => Math.round(item.top)))];
+        const minimumWidth = viewport.width === 320 ? 130 : 160;
+        const maximumWidth = viewport.width === 320 ? 145 : 180;
+        assert(rowTops.length === 3, `${viewport.name} primary tools must render as two columns across three rows: ${JSON.stringify(toolLayout)}`);
+        assert(toolLayout.every((item) => item.width >= minimumWidth && item.width <= maximumWidth), `${viewport.name} tool cards have unexpected widths: ${JSON.stringify(toolLayout)}`);
+        assert(toolLayout.every((item) => item.scrollWidth <= item.clientWidth + 1), `Mobile tool card content is clipped: ${JSON.stringify(toolLayout)}`);
+        assert(toolLayout.every((item) => item.height >= 104 && item.scrollHeight <= item.clientHeight + 1), `Mobile tool card text is vertically clipped: ${JSON.stringify(toolLayout)}`);
+      }
       await runRecoveryPersistence(page);
       await saveScreenshot(page, `${viewport.name}-full-app.png`);
       results.push({
         viewport: `${viewport.width}x${viewport.height}`,
         productRootOverflow: rootAudit.scrollWidth - rootAudit.viewportWidth,
         fullAppOverflow: appAudit.scrollWidth - appAudit.viewportWidth,
+        toolCardWidths: toolLayout.map((item) => Math.round(item.width)),
         refreshPersistence: true,
       });
     }

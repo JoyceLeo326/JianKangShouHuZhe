@@ -704,6 +704,89 @@ select {
   white-space: nowrap;
 }
 
+.install-permission-guide {
+  margin-top: 22px;
+  padding: 28px;
+  border: 1px solid #cfe1db;
+  border-radius: 20px;
+  background: #f7fbf9;
+}
+
+.install-guide-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.install-guide-heading h3 {
+  margin: 5px 0 0;
+  font-size: 26px;
+}
+
+.permission-badge {
+  flex: none;
+  padding: 9px 13px;
+  border-radius: 999px;
+  color: #08745f;
+  background: #dff3ec;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.install-guide-lead,
+.install-troubleshoot,
+.install-sources {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.install-steps {
+  margin: 18px 0;
+  padding-left: 22px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.brand-install-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.brand-install-grid details {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.brand-install-grid summary {
+  min-height: 24px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.brand-install-grid p {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.install-sources {
+  margin-bottom: 0;
+}
+
+.install-sources a {
+  color: var(--primary-deep);
+  font-weight: 700;
+}
+
 .network-boundary {
   display: grid;
   grid-template-columns: minmax(180px, 0.28fr) 1fr;
@@ -1066,6 +1149,19 @@ footer > div {
     grid-template-columns: 1fr;
     gap: 10px;
     padding: 20px;
+  }
+
+  .install-permission-guide {
+    padding: 20px;
+  }
+
+  .install-guide-heading {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .brand-install-grid {
+    grid-template-columns: 1fr;
   }
 
   .boundary-card {

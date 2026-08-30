@@ -5,14 +5,14 @@
 
 ## 交付文件
 
-- `HealthGuardian-1.1.0-Windows-x64.exe`：免安装可执行文件。
-- `HealthGuardian-1.1.0-Windows-x64.zip`：解压后运行 `HealthGuardian.exe`。
+- `HealthGuardian-v1.1.0-windows-x64.exe`：免安装可执行文件。
+- `HealthGuardian-v1.1.0-windows-x64.zip`：解压后运行 `HealthGuardian.exe`。
 - `SHA256SUMS.txt`：交付文件完整性校验值。
 - `RUNTIME-SMOKE.json`：启动和本地持久化自动检查记录。
 
 ## 使用方式
 
-直接打开 `HealthGuardian-1.1.0-Windows-x64.exe`，应用会在独立窗口中运行。核心界面来自同一份正式 Expo Web 构建，不依赖远程网页；应用数据保存在当前 Windows 用户的 `AppData/Roaming/HealthGuardian` 目录，关闭和再次打开后仍会保留。
+直接打开 `HealthGuardian-v1.1.0-windows-x64.exe`，应用会在独立窗口中运行。核心界面来自同一份正式 Expo Web 构建，不依赖远程网页；应用数据保存在当前 Windows 用户的 `AppData/Roaming/HealthGuardian` 目录，关闭和再次打开后仍会保留。
 
 外部 HTTPS 链接交由系统默认浏览器打开。桌面窗口禁用 Node.js 集成并启用上下文隔离、渲染器沙箱、Web 安全、权限拒绝和单实例保护。
 
@@ -21,8 +21,8 @@
 在 PowerShell 中运行：
 
 ```powershell
-Get-FileHash .\HealthGuardian-1.1.0-Windows-x64.exe -Algorithm SHA256
-Get-FileHash .\HealthGuardian-1.1.0-Windows-x64.zip -Algorithm SHA256
+Get-FileHash .\HealthGuardian-v1.1.0-windows-x64.exe -Algorithm SHA256
+Get-FileHash .\HealthGuardian-v1.1.0-windows-x64.zip -Algorithm SHA256
 ```
 
 将输出与 `SHA256SUMS.txt` 对照。当前自动构建未使用商业代码签名证书；Windows 可能显示来源确认提示，确认文件哈希后可继续打开。

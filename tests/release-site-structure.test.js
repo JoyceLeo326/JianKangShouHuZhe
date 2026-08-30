@@ -25,6 +25,31 @@ test('release site has a formal product root and a complete app entry', () => {
   assert.doesNotMatch(html, forbiddenProductWords);
 });
 
+test('Android release copy promises a direct installed-app workflow', () => {
+  const html = read('web-release/index.html');
+  const androidCard = html.match(/<article class="download-card" data-release-target="android">([\s\S]*?)<\/article>/)?.[1];
+  const readme = read('README.md');
+  const releaseReadme = read('web-release/README.md');
+  const releaseNotes = read('docs/releases/v1.1.0.md');
+  const nextSteps = read('release/README-下一步操作.md');
+
+  assert.match(html, /Android 安装后打开即用/);
+  assert.ok(androidCard, 'Android download card is required');
+  assert.match(androidCard, /下载签名 APK.*安装后.*桌面图标.*直接进入工作台/);
+  assert.doesNotMatch(androidCard, /Demo|演示|样例版|原型|预览版|体验|叙事|画廊|章节|介绍/i);
+  for (const [label, content] of [
+    ['README', readme],
+    ['release site README', releaseReadme],
+    ['release notes', releaseNotes],
+    ['next steps', nextSteps],
+  ]) {
+    assert.match(content, /APK/i, `${label} must identify the installable APK`);
+    assert.match(content, /安装/, `${label} must explain installation`);
+    assert.match(content, /桌面[^。\n]{0,48}图标/, `${label} must explain launcher icon access`);
+    assert.match(content, /直接进入工作台/, `${label} must promise a direct tool entry`);
+  }
+});
+
 test('release site exposes one manifest-driven Android and Windows release source', () => {
   const manifest = JSON.parse(read('web-release/release-manifest.json'));
 

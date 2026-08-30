@@ -7,21 +7,25 @@
 最新构建已经完成：
 
 - 上架用 AAB 构建：`92e84ac2-c9fe-428e-beb8-af6e23023a09`
-- 正式直装 APK 构建：`57365df0-b4dc-41e8-80db-363e249f47f7`（版本 `1.1.0`，构建号 `13`）
+- 正式直装 APK 构建：`b3775202-b534-4d23-8e81-79044275dac2`（版本 `1.1.0`，构建号 `16`）
 
 本地文件：
 
 - `release/jiankang-shouhuzhe-production.aab`
-- `release/HealthGuardian-1.1.0-Android.apk`
+- `release/HealthGuardian-v1.1.0-android.apk`
 
-## 本地运行 App
+## Android 直接安装
+
+从正式发布页下载 APK，在 Android 浏览器或文件管理器中打开文件并按系统提示完成安装。安装完成后，点击桌面上的“健康守护者”图标即可直接进入工作台；不需要 Expo Go 或电脑连接。
+
+Android 手机正式使用以 EAS 签名的 `release/HealthGuardian-v1.1.0-android.apk` 为准；哈希与安装验收见 `release/latest-android-apk-build.md`。
+
+## 开发环境运行
 
 ```powershell
 cd <project-directory>\JianKangShouHuZhe
 npx expo start
 ```
-
-Android 手机正式使用以 EAS 签名的 `release/HealthGuardian-1.1.0-Android.apk` 为准；哈希与验收边界见 `release/latest-android-apk-build.md`。
 
 ## 本地运行账号服务
 

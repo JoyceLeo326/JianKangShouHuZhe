@@ -4,20 +4,20 @@
 
 - 应用：健康守护者
 - 版本：`1.1.0`
-- Android 构建号：`13`
+- Android 构建号：`16`
 - 包名：`com.joyceleo.jiankangshouhuzhe`
 - EAS profile：`production-apk`
 - EAS environment：`production`
-- EAS build ID：`57365df0-b4dc-41e8-80db-363e249f47f7`
-- 构建页面：<https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/57365df0-b4dc-41e8-80db-363e249f47f7>
-- 云端制品：<https://expo.dev/artifacts/eas/VAgkH01Dc8YSBJg81vcVfS36fwWnNqBKJKc6x6rFS0w.apk>
-- EAS fingerprint：`befd02a88a49e3a29522551bb9912db0cc97d7ac`
+- EAS build ID：`b3775202-b534-4d23-8e81-79044275dac2`
+- 构建页面：<https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/b3775202-b534-4d23-8e81-79044275dac2>
+- 云端制品：<https://expo.dev/artifacts/eas/uXlFRCLA6cSayN2Uo1kgsiSZQy_fijQHVVmNiuTpjMw.apk>
+- EAS fingerprint：`2accdfe7317c699ed739ff64a9e66b8e1e0f7f4a`
 
 ## 本地制品
 
-- 文件：`release/HealthGuardian-1.1.0-Android.apk`
-- 大小：`66,230,390` bytes
-- SHA256：`3C89BC174C9C81022D2DBFB6B94C4BD0E6A281EE00225E7A95F6BE8A3BBE3F76`
+- 文件：`release/HealthGuardian-v1.1.0-android.apk`
+- 大小：`65,095,714` bytes
+- SHA256：`F6C87AB7408E903F255240D490B1FEF4D295277BF7378CD92BAAE5A055D4BC24`
 
 ## 包体检查
 
@@ -28,15 +28,12 @@
 - 签名：APK Signature Scheme v2
 - 签名证书 SHA256：`018E2968B06650B432A30F8E368189D732B60ED4011B0A10E69C7FCCAEC25BA0`
 - 权限：`INTERNET`、`VIBRATE`、应用自身的动态接收器保护权限
-- 已确认不存在：`SYSTEM_ALERT_WINDOW`、`READ_EXTERNAL_STORAGE`、`WRITE_EXTERNAL_STORAGE`
+- 已确认不存在：相机、麦克风、定位、通讯录、电话、短信、通知、照片/文件、身体传感器、`SYSTEM_ALERT_WINDOW`、`READ_EXTERNAL_STORAGE`、`WRITE_EXTERNAL_STORAGE`
 
-## 安装验证边界
+安装时唯一可能需要手动开启的是 Android 系统针对下载来源的“安装未知应用”开关。只需临时允许本次使用的浏览器或文件管理器；该开关属于安装来源授权，不是健康守护者的运行时权限，安装后可关闭。产品下载页已提供小米/Redmi、华为、荣耀、OPPO/一加/realme、vivo/iQOO、三星的具体菜单路径。
 
-本机已找到 ADB 客户端，但检查时没有连接中的 Android 设备或模拟器，因此本轮不能宣称完成真机安装、启动和重启回读。连接设备并允许 USB 调试后可执行：
+## 安装与持久化验证
 
-```powershell
-adb install -r release/HealthGuardian-1.1.0-Android.apk
-adb shell monkey -p com.joyceleo.jiankangshouhuzhe -c android.intent.category.LAUNCHER 1
-```
+最终包已在清空数据的 Android 15 x86_64 环境中完成安装和系统 Launcher 启动。首屏直接显示“今日工作状态”和六个可操作工具入口，不包含交付演示措辞；安全自查、患者建档、新建评估、训练中心、记录反馈、数据与交接均已逐项打开验证。
 
-首次启动、空数据工作区、离线本地保存、康复反馈回流、报告导出与医疗边界由项目自动化测试覆盖；真机触控和进程重启后的持久化回读仍应在发布设备上补验。
+确认隐私授权并保存虚拟档案 `HGFinal16` 后，应用被强制停止并从 Launcher 再次启动。再次启动产生新进程，`MainActivity` 正常位于前台；档案与授权均成功回读，日志中未发现 `FATAL` 或 `AndroidRuntime` 崩溃。
