@@ -1,6 +1,10 @@
 node_modules/
 .expo/
+dist/
+web-build/
+.netlify/
 release/
+server/data/
 expo-codex.log
 expo-go-qr.png
 expo-go-url.txt
