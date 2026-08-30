@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build:static-mirror",
-  "outputDirectory": "release/github-pages-deploy"
+  "outputDirectory": "dist/release-site",
+  "rewrites": [
+    { "source": "/app/:path*", "destination": "/app/index.html" }
+  ]
 }

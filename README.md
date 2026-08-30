@@ -8,7 +8,7 @@
 
 健康守护者先让人慢下来。开始前看一遍风险，训练后如实记下感受，再把选择、异常和问题放进同一份交接单。下次见到医生或康复治疗师时，不必只说“好像还行”。
 
-[在线使用（GitHub Pages）](https://joyceleo326.github.io/JianKangShouHuZhe/) · [仓库主页](https://github.com/JoyceLeo326/JianKangShouHuZhe)
+[产品主页](https://jiankang-shouhuzhe.netlify.app/) · [在线应用](https://jiankang-shouhuzhe.netlify.app/app/) · [Android 与 Windows 下载](https://github.com/JoyceLeo326/JianKangShouHuZhe/releases/tag/v1.1.0) · [仓库主页](https://github.com/JoyceLeo326/JianKangShouHuZhe)
 
 > **医疗边界**：本项目不诊断疾病，不自动开具、批准或调整处方，也不替代医生、康复治疗师或当地急救服务。处方始终是待专业人员复核的草稿；出现胸痛、呼吸困难、意识异常、突然单侧无力、口角歪斜或语言异常等警示症状时，应停止使用并立即联系当地急救服务。
 
@@ -23,9 +23,9 @@
 7. **记录真实结果**：保存完成、舒适、疲劳、不适或中止等反馈。下次打开复盘时，会先看到这次结果；“继续、复盘、暂停、专业确认”的顺序也会随之改变。
 8. **形成专业交接**：下载包含目标、自查、处方状态、候选比较、人工选择、反馈和下一步问题的交接单，供后续复核。
 
-### 第一次体验建议
+### 第一次使用建议
 
-打开在线入口后，先使用示例数据完成一次“今日康复复盘”：
+打开在线入口后，先用不含个人敏感信息的练习记录完成一次“今日康复复盘”：
 
 1. 在训练前自查中分别尝试无异常和出现不适两种情况，确认推荐顺序确实改变；
 2. 阅读三个候选的收益与代价，再确认一条路径；
@@ -118,7 +118,7 @@ npm run build:pages
 - `.github/workflows/ci.yml` 安装依赖并运行自动化验证；
 - `.github/workflows/github-pages.yml` 构建并上传静态 Pages 产物；
 - `vercel.json` 可把同一 Pages 静态产物作为根路径部署；
-- `netlify.toml` 保留独立 Web 演示构建配置；
+- `netlify.toml` 定义正式产品站与在线应用的构建配置；
 - 静态 Pages 版本不部署 `server/`，也不会把 `.env` 或 `JWT_SECRET` 打进前端。
 
 ## 目录结构

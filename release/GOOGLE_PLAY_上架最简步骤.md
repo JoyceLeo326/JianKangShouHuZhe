@@ -17,7 +17,7 @@
 - 联系邮箱。
 - 隐私政策公网 HTTPS 链接。
 - 最新 AAB：`release/jiankang-shouhuzhe-production.aab`。
-- 手机测试 APK：`release/jiankang-shouhuzhe-preview.apk`。
+- 手机直装 APK：`release/HealthGuardian-1.1.0-Android.apk`。
 
 ## 第 1 步：创建应用
 
@@ -81,7 +81,7 @@
 ## 当前本地文件
 
 - 上架包：`release/jiankang-shouhuzhe-production.aab`
-- 安装包：`release/jiankang-shouhuzhe-preview.apk`
+- 正式直装包：`release/HealthGuardian-1.1.0-Android.apk`
 - 隐私政策草稿：`release/privacy-policy.md`
 - 用户协议草稿：`release/user-agreement.md`
 - 商店文案：`release/store-listing.md`

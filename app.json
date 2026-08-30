@@ -2,7 +2,7 @@
   "expo": {
     "name": "健康守护者",
     "slug": "jiankang-shouhuzhe",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,8 +20,13 @@
     },
     "android": {
       "package": "com.joyceleo.jiankangshouhuzhe",
-      "versionCode": 1,
+      "versionCode": 10,
       "permissions": [],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "edgeToEdgeEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

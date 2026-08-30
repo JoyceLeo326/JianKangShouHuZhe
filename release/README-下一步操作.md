@@ -7,12 +7,12 @@
 最新构建已经完成：
 
 - 上架用 AAB 构建：`92e84ac2-c9fe-428e-beb8-af6e23023a09`
-- 安装测试用 APK 构建：`16200320-1a96-4d9b-9e9c-3682ea53486c`
+- 正式直装 APK 构建：`57365df0-b4dc-41e8-80db-363e249f47f7`（版本 `1.1.0`，构建号 `13`）
 
 本地文件：
 
 - `release/jiankang-shouhuzhe-production.aab`
-- `release/jiankang-shouhuzhe-preview.apk`
+- `release/HealthGuardian-1.1.0-Android.apk`
 
 ## 本地运行 App
 
@@ -21,7 +21,7 @@ cd <project-directory>\JianKangShouHuZhe
 npx expo start
 ```
 
-Android 手机可使用 Expo Go 扫码预览。正式安装测试以 EAS 生成的 APK 为准。
+Android 手机正式使用以 EAS 签名的 `release/HealthGuardian-1.1.0-Android.apk` 为准；哈希与验收边界见 `release/latest-android-apk-build.md`。
 
 ## 本地运行账号服务
 

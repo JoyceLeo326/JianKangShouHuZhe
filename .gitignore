@@ -16,6 +16,7 @@ expo-go-qr.png
 expo-go-url.txt
 release/*.apk
 release/*.aab
+release/*.exe
 release/*.json
 release/*.txt
 release/*.zip
@@ -63,3 +64,6 @@ server/data/
 # generated native folders
 /ios
 /android
+
+# Local Netlify folder
+.netlify
