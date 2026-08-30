@@ -399,7 +399,7 @@ async function assertKeyboardAccess(page, viewportName) {
 async function resetJourney(page) {
   await page.evaluate(`(() => { localStorage.clear(); sessionStorage.clear(); return true; })()`);
   await page.send('Page.reload', { ignoreCache: true });
-  await waitForExpression(page, `document.body.innerText.includes('从今天的状态，到一份可复核结果')`, 'Guest-first recovery journey did not load.');
+  await waitForExpression(page, `document.body.innerText.includes('今日工作状态') && document.body.innerText.includes('常用工具') && document.body.innerText.includes('今日安全复盘')`, 'Guest-first tool workspace did not load.');
   await waitForExpression(page, `document.body.innerText.includes('暂无上次反馈')`, 'Stored feedback reader did not settle.');
   await page.evaluate(`window.alert = () => {}; window.confirm = () => true; true;`);
 }
@@ -441,8 +441,7 @@ async function main() {
       await setViewport(page, viewport);
       await resetJourney(page);
       assert(!(await page.evaluate(`document.body.innerText.includes('请先登录后使用')`)), 'Login unexpectedly gates the recovery journey.');
-      await waitForExpression(page, `document.querySelector('[data-recovery-story-scene="01"][data-recovery-story-loaded="true"]')`, `${viewport.name} initial story scene did not load.`);
-      assert((await page.evaluate(`document.querySelectorAll('[data-recovery-story-scene]').length`)) === 1, `${viewport.name} must render only the current recovery scene for lazy loading.`);
+      assert((await page.evaluate(`document.querySelectorAll('[data-recovery-story-scene]').length`)) === 0, `${viewport.name} must not render a narrated story gallery.`);
       let layout = await inspectLayout(page);
       assertLayout(layout, viewport.name, 0);
       let keyboardAudit = await assertKeyboardAccess(page, viewport.name);
@@ -468,15 +467,6 @@ async function main() {
       maximumKeyboardFocusableControls = Math.max(maximumKeyboardFocusableControls, keyboardAudit.focusableCount);
       minimumTouchTarget = Math.min(minimumTouchTarget, ...layout.targets.map((item) => Math.min(item.width, item.height)));
       await saveScreenshot(page, `${viewport.name}-03-candidates-tradeoffs`);
-
-      const storySources = [];
-      for (let number = 1; number <= 24; number += 1) {
-        const loadedScene = await clickStoryScene(page, number);
-        assert(loadedScene.scene === String(number).padStart(2, '0'), `${viewport.name} loaded the wrong scene for chapter ${number}.`);
-        assert(loadedScene.source.includes('.webp'), `${viewport.name} scene ${number} did not resolve to a WebP resource.`);
-        storySources.push(loadedScene.source);
-      }
-      assert(new Set(storySources).size === 24, `${viewport.name} did not load 24 independent story resources.`);
 
       await clickLabel(page, '人工确认这个选择');
       await saveScreenshot(page, `${viewport.name}-04-human-confirmation`);
@@ -517,8 +507,8 @@ async function main() {
         fullJourney: true,
         keyboardVisibleControl: true,
         candidates: 3,
-        storyResources: new Set(storySources).size,
-        lazySingleScene: true,
+        storyResources: 0,
+        toolFirstWorkbench: true,
         feedbackCausality: '出现不适 -> 优先复盘',
         realDownloadBytes: Buffer.byteLength(downloadedText),
         overflowX: layout.overflowX,
@@ -537,7 +527,7 @@ async function main() {
     assert(screenshotNames.length === 32, `Expected 32 dual-end journey screenshots, found ${screenshotNames.length}.`);
     console.log(JSON.stringify({
       guestAccess: true,
-      independentStoryResources: 24,
+      narratedStoryResources: 0,
       fullJourneyPerViewport: true,
       viewports: results,
       screenshotCount: screenshotNames.length,
