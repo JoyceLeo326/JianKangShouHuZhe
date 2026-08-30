@@ -1,6 +1,6 @@
 # 健康守护者交付与上架说明
 
-更新日期：2026-04-28
+更新日期：2026-08-30
 
 ## 当前状态
 
@@ -10,23 +10,25 @@
 
 新的 Android 构建已经完成：
 
-- 生产 AAB：`92e84ac2-c9fe-428e-beb8-af6e23023a09`
-- 预览 APK：`16200320-1a96-4d9b-9e9c-3682ea53486c`
+- Google Play AAB：`92e84ac2-c9fe-428e-beb8-af6e23023a09`
+- 正式直装 APK：`57365df0-b4dc-41e8-80db-363e249f47f7`（版本 `1.1.0`，构建号 `13`）
 
 构建页面：
 
 - https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/92e84ac2-c9fe-428e-beb8-af6e23023a09
-- https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/16200320-1a96-4d9b-9e9c-3682ea53486c
+- https://expo.dev/accounts/joyce_leo/projects/jiankang-shouhuzhe/builds/57365df0-b4dc-41e8-80db-363e249f47f7
 
 构建完成后：
 
 - `.aab` 用于 Google Play Console 上传。
-- `.apk` 用于安卓手机直接安装测试。
+- `.apk` 用于安卓手机直接安装和离线使用。
 
 本地文件：
 
 - `release/jiankang-shouhuzhe-production.aab`
-- `release/jiankang-shouhuzhe-preview.apk`
+- `release/HealthGuardian-1.1.0-Android.apk`
+
+正式 APK 的 SHA256、签名、权限和设备验证边界见 `release/latest-android-apk-build.md`。
 
 ## 账号服务
 

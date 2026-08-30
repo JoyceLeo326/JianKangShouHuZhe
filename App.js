@@ -2593,7 +2593,7 @@ function AiMessage({ message, typing, onDecision }) {
         <Ionicons name={message.error ? 'alert' : 'sparkles'} size={15} color={C.white} />
       </LinearGradient>
       <View style={styles.aiBubbleBot}>
-        {!message.error && <View style={styles.aiDemoTag}><Ionicons name="person-outline" size={11} color={C.amberDeep} /><Text style={styles.aiDemoTagText}>待专业复核</Text></View>}
+        {!message.error && <View style={styles.aiReviewTag}><Ionicons name="person-outline" size={11} color={C.amberDeep} /><Text style={styles.aiReviewTagText}>待专业复核</Text></View>}
         {message.error ? <Text style={styles.aiErrText}>{message.content}</Text> : <MarkdownLite text={shown} />}
         {!!message.runId && !message.error && !message.decision && (
           <View style={styles.aiDecisionRow}>
@@ -3410,8 +3410,8 @@ const styles = StyleSheet.create({
   loginToggleText: { color: C.muted, fontSize: 14.5, fontWeight: '700' },
   loginToggleTextActive: { color: C.ink },
   loginSubmit: { marginTop: 6 },
-  loginDemo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: C.amberTint, borderRadius: 10 },
-  loginDemoText: { marginLeft: 6, color: C.amberDeep, fontSize: 12, fontWeight: '700' },
+  loginNotice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: C.amberTint, borderRadius: 10 },
+  loginNoticeText: { marginLeft: 6, color: C.amberDeep, fontSize: 12, fontWeight: '700' },
   loginSupportText: { color: C.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 14 },
 
   /* workbench */
@@ -3831,8 +3831,8 @@ const styles = StyleSheet.create({
   aiAvatar: { width: 30, height: 30, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginRight: 9, marginTop: 2 },
   aiBubbleBot: { flex: 1, backgroundColor: C.surface, borderRadius: 18, borderTopLeftRadius: 5, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, paddingVertical: 12, ...SHADOW.card },
   aiThinking: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 },
-  aiDemoTag: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: C.amberTint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, marginBottom: 8 },
-  aiDemoTagText: { color: C.amberDeep, fontSize: 10.5, fontWeight: '800', marginLeft: 4, letterSpacing: 0.3 },
+  aiReviewTag: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: C.amberTint, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, marginBottom: 8 },
+  aiReviewTagText: { color: C.amberDeep, fontSize: 10.5, fontWeight: '800', marginLeft: 4, letterSpacing: 0.3 },
   aiDecisionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.border },
   aiDecisionPrimary: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.primaryDeep, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 9, marginRight: 8, marginBottom: 6 },
   aiDecisionPrimaryText: { color: C.white, fontSize: 11.5, fontWeight: '800', marginLeft: 5 },
