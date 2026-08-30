@@ -2183,7 +2183,7 @@ function ProfileScreen({
             <Text style={styles.profileHeroName}>{user.name}</Text>
             <View style={styles.profileHeroTagRow}>
               <View style={styles.profileHeroTag}><Text style={styles.profileHeroTagText}>{user.role}</Text></View>
-              <Text style={styles.profileHeroEmail}>健康守护者 v1.0</Text>
+              <Text style={styles.profileHeroEmail}>健康守护者 v1.1.0</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.profileEditBtn} activeOpacity={0.8} onPress={() => setShowEdit(true)}>
@@ -2241,13 +2241,13 @@ function ProfileScreen({
         <ProfileMenu icon="trash-outline" tone="coral" title={isLocal ? '清除本机数据' : '注销账号与删除数据'} caption={isLocal ? '删除这台设备保存的工作区数据' : '删除当前账号和关联数据'} onPress={confirmDeleteAccount} danger last={isLocal} />
         {!isLocal && <ProfileMenu icon="log-out-outline" tone="coral" title="退出登录" caption="退出当前账号" onPress={onLogout} danger last />}
       </Card>
-      <Text style={styles.versionText}>健康守护者　版本 1.0.0</Text>
+      <Text style={styles.versionText}>健康守护者　版本 1.1.0</Text>
 
       <ModalSheet visible={showEdit} title="编辑资料" subtitle="资料会用于工作台和个人中心展示" onClose={() => setShowEdit(false)}>
         <InputField label="姓名" icon="person-outline" value={draft.name} onChangeText={(v) => setDraft((p) => ({ ...p, name: v }))} placeholder="姓名" />
         <PrimaryButton label="保存资料" icon="checkmark" onPress={saveProfile} />
       </ModalSheet>
-      <ModalSheet visible={showAbout} title="关于健康守护者" subtitle="版本 1.0.0" onClose={() => setShowAbout(false)}>
+      <ModalSheet visible={showAbout} title="关于健康守护者" subtitle="版本 1.1.0" onClose={() => setShowAbout(false)}>
         <View style={styles.aboutMark}>
           <HeroMedallion size={110} pct={0.78} />
           <Text style={styles.aboutName}>健康守护者</Text>
