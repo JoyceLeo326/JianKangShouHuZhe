@@ -25,6 +25,20 @@ test('release site has a formal product root and a complete app entry', () => {
   assert.doesNotMatch(html, forbiddenProductWords);
 });
 
+test('product homepage uses concrete product copy instead of contrast slogans', () => {
+  const html = read('web-release/index.html');
+
+  assert.doesNotMatch(html, /完整流程，不是零散工具|每个关键节点|都保留人的判断/);
+  assert.doesNotMatch(html, /不是|而是|不只是|不仅是/);
+  assert.doesNotMatch(html, /核心流程|核心功能|本地优先|可追溯交接|选择适合你的使用方式/);
+  assert.match(html, /<h1>记录状态，<br \/>复核方案，<br \/><span>跟进训练。<\/span><\/h1>/);
+  assert.match(html, /从安全自查到数据交接/);
+  assert.match(html, /四步完成一次康复记录/);
+  assert.match(html, /患者建档、安全自查、评估记录、训练管理、反馈记录和报告交接/);
+  assert.match(html, /网页直接用，也可安装 Android 和 Windows 客户端/);
+  assert.match(html, /本机保存 · 记录复核结果 · 导出交接单/);
+});
+
 test('Android release copy promises a direct installed-app workflow', () => {
   const html = read('web-release/index.html');
   const androidCard = html.match(/<article class="download-card" data-release-target="android">([\s\S]*?)<\/article>/)?.[1];
