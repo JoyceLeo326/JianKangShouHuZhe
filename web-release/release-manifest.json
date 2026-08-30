@@ -10,8 +10,8 @@
       "label": "Android APK",
       "fileName": "HealthGuardian-v1.1.0-android.apk",
       "primaryUrl": "https://github.com/JoyceLeo326/JianKangShouHuZhe/releases/download/v1.1.0/HealthGuardian-v1.1.0-android.apk",
-      "fallbackUrl": "",
-      "sha256": "",
+      "fallbackUrl": "https://expo.dev/artifacts/eas/VAgkH01Dc8YSBJg81vcVfS36fwWnNqBKJKc6x6rFS0w.apk",
+      "sha256": "3c89bc174c9c81022d2dbfb6b94c4bd0e6a281ee00225e7a95f6be8a3bbe3f76",
       "environment": {
         "primaryUrl": "HEALTH_ANDROID_DOWNLOAD_URL",
         "fallbackUrl": "HEALTH_ANDROID_FALLBACK_URL",
@@ -22,8 +22,8 @@
       "label": "Windows x64",
       "fileName": "HealthGuardian-v1.1.0-windows-x64.zip",
       "primaryUrl": "https://github.com/JoyceLeo326/JianKangShouHuZhe/releases/download/v1.1.0/HealthGuardian-v1.1.0-windows-x64.zip",
-      "fallbackUrl": "",
-      "sha256": "",
+      "fallbackUrl": "https://github.com/JoyceLeo326/JianKangShouHuZhe/releases/download/v1.1.0/HealthGuardian-v1.1.0-windows-x64.exe",
+      "sha256": "4f19fca80b7d1b8c1c4f9cf25256b6b0c7284c130a7360005d678070b36c72aa",
       "environment": {
         "primaryUrl": "HEALTH_WINDOWS_DOWNLOAD_URL",
         "fallbackUrl": "HEALTH_WINDOWS_FALLBACK_URL",
