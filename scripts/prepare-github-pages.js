@@ -1,76 +1,66 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
+const sourceDir = path.join(root, 'dist', 'release-site');
 const outDir = path.join(root, 'release', 'github-pages-deploy');
-const indexPath = path.join(outDir, 'index.html');
-const nojekyllPath = path.join(outDir, '.nojekyll');
-const bundleDir = path.join(outDir, '_expo', 'static', 'js', 'web');
+const basePath = '/JianKangShouHuZhe';
+const netlifyOrigin = 'https://jiankang-shouhuzhe.netlify.app';
+const pagesSiteUrl = `https://joyceleo326.github.io${basePath}`;
 
-if (!fs.existsSync(indexPath)) {
-  throw new Error(`Missing ${indexPath}. Run npm run build:pages after exporting the web app.`);
-}
-
-let html = fs.readFileSync(indexPath, 'utf8');
-
-html = html
-  .replace(/(href|src)="\/(favicon\.ico|_expo\/|assets\/)/g, '$1="./$2')
-  .replace(/url\("\/(_expo\/|assets\/)/g, 'url("./$1')
-  .replace(/url\(\/(_expo\/|assets\/)/g, 'url(./$1');
-
-if (!html.includes('background: #DDE6E1;')) {
-  html = html.replace(
-    /body\s*\{\s*overflow:\s*hidden;\s*\}/,
-    `body {
-        overflow: hidden;
-        background: #DDE6E1;
-      }`,
-  );
-}
-
-if (!html.includes('justify-content: center;')) {
-  html = html.replace(
-    /#root\s*\{\s*display:\s*flex;\s*height:\s*100%;\s*flex:\s*1;\s*\}/,
-    `#root {
-        display: flex;
-        height: 100%;
-        flex: 1;
-        justify-content: center;
-        background: #DDE6E1;
-      }`,
-  );
-}
-
-if (!html.includes('#root > *')) {
-  html = html.replace(
-    '</style>',
-    `      #root > * {
-        width: 100% !important;
-        max-width: 920px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-      }
-      @media (max-width: 939px) {
-        #root > * {
-          max-width: 100% !important;
-        }
-      }
-    </style>`,
-  );
-}
-
-fs.writeFileSync(indexPath, html, 'utf8');
-fs.writeFileSync(nojekyllPath, '', 'utf8');
-
-if (fs.existsSync(bundleDir)) {
-  for (const file of fs.readdirSync(bundleDir)) {
-    if (!file.endsWith('.js')) continue;
-    const bundlePath = path.join(bundleDir, file);
-    const bundle = fs.readFileSync(bundlePath, 'utf8')
-      .replace(/(["'])\/assets\//g, '$1./assets/')
-      .replace(/(["'])\/_expo\//g, '$1./_expo/');
-    fs.writeFileSync(bundlePath, bundle, 'utf8');
+function assertInside(parent, target) {
+  const relative = path.relative(path.resolve(parent), path.resolve(target));
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Refusing unsafe path outside ${parent}: ${target}`);
   }
 }
 
-console.log(`Prepared GitHub Pages output: ${path.relative(root, outDir)}`);
+function walkFiles(directory) {
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...walkFiles(absolute));
+    else files.push(absolute);
+  }
+  return files;
+}
+
+function rewriteRootPaths(content) {
+  return content
+    .replaceAll(netlifyOrigin, pagesSiteUrl)
+    .replace(/(["'`])\/(?!\/)/g, `$1${basePath}/`)
+    .replace(/url\(\s*\/(?!\/)/g, `url(${basePath}/`);
+}
+
+function preparePagesMirror() {
+  if (!fs.existsSync(path.join(sourceDir, 'index.html'))) {
+    throw new Error(`Missing ${sourceDir}. Run npm run build:web:release first.`);
+  }
+
+  assertInside(path.join(root, 'release'), outDir);
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.cpSync(sourceDir, outDir, { recursive: true });
+
+  for (const requiredFile of ['manifest.webmanifest', 'release-manifest.json', 'sw.js', 'app/index.html']) {
+    if (!fs.existsSync(path.join(outDir, requiredFile))) {
+      throw new Error(`GitHub Pages mirror is missing ${requiredFile}.`);
+    }
+  }
+
+  const textExtensions = new Set(['.css', '.html', '.js', '.json', '.txt', '.webmanifest', '.xml']);
+  for (const file of walkFiles(outDir)) {
+    if (!textExtensions.has(path.extname(file))) continue;
+    const content = fs.readFileSync(file, 'utf8');
+    fs.writeFileSync(file, rewriteRootPaths(content), 'utf8');
+  }
+
+  fs.writeFileSync(path.join(outDir, '.nojekyll'), '', 'utf8');
+  console.log(JSON.stringify({
+    output: path.relative(root, outDir),
+    basePath,
+    siteUrl: `${pagesSiteUrl}/`,
+    files: walkFiles(outDir).length,
+  }, null, 2));
+}
+
+preparePagesMirror();
