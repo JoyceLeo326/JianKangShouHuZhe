@@ -312,7 +312,7 @@ function buildPatientContext(patient, assessments, records, prescriptions) {
   lines.push(`患者：${patient.name}，${patient.age}岁，诊断「${patient.diagnosis}」，患侧${patient.side}，当前${patient.stage}，风险等级${patient.risk}。`);
   if (s.latest) {
     const display = (value, unit = '') => value == null || value === '' ? '缺失' : `${value}${unit}`;
-    lines.push(`最新人工记录（${s.latest.date}）：握力${display(s.latest.grip, 'kg')}，关节活动度${display(s.latest.rom, '%')}，疼痛${display(s.latest.pain, '/10')}，日常生活能力${display(s.latest.adl, '%')}，未验证旧版汇总分${display(s.latest.score)}。数据来源：${s.latest.source || '未记录'}。`);
+    lines.push(`最新人工记录（${s.latest.date}）：握力${display(s.latest.grip, 'kg')}，关节活动度${display(s.latest.rom, '%')}，疼痛${display(s.latest.pain, '/10')}，日常生活能力${display(s.latest.adl, '%')}，人工汇总分${display(s.latest.score)}。数据来源：${s.latest.source || '未记录'}。`);
   }
   else lines.push('暂无评估记录。');
   if (s.r.length) {
@@ -1672,7 +1672,7 @@ function AssessmentPanel({ patients, assessments, setAssessments, consentActive,
         return (
           <Card key={item.id} style={styles.itemCard}>
             <View style={styles.itemTopLine}>
-              <View style={styles.flex}><Text style={styles.cardTitle}>{item.patient}</Text><Text style={styles.cardMeta}>{item.date} · 未验证旧版汇总分</Text></View>
+              <View style={styles.flex}><Text style={styles.cardTitle}>{item.patient}</Text><Text style={styles.cardMeta}>{item.date} · 人工汇总分（非标准量表）</Text></View>
               <View style={[styles.scoreMedallionWrap, { backgroundColor: tone.bg }]}>
                 <ArcMini size={64} pct={item.score / 100} color={tone.fg} track={tone.fg + '20'} strokeWidth={5} />
                 <View style={styles.scoreMedallionTextWrap}>
@@ -1690,7 +1690,7 @@ function AssessmentPanel({ patients, assessments, setAssessments, consentActive,
           </Card>
         );
       })}
-      <ModalSheet visible={showAdd} title="录入基础测量" subtitle="保留原始数值；汇总分为未验证旧版算法，不替代标准化评估" onClose={() => setShowAdd(false)}>
+      <ModalSheet visible={showAdd} title="录入基础测量" subtitle="保留原始数值；人工汇总分不替代标准化专业评估" onClose={() => setShowAdd(false)}>
         <Text style={styles.inputLabel}>患者</Text>
         <View style={styles.chipRow}>{patients.map((patient) => <Chip key={patient.id} label={patient.name} active={form.patient === patient.name} onPress={() => setForm((p) => ({ ...p, patient: patient.name }))} />)}</View>
         <InputField label="握力 kg" icon="barbell-outline" value={form.grip} onChangeText={(v) => setForm((p) => ({ ...p, grip: v }))} keyboardType="numeric" placeholder="例如 20" />
@@ -2681,7 +2681,7 @@ function QuickFlowModal({ flow, patients, onClose, addAssessment, addPrescriptio
   }, [flow, patients]);
   if (!flow) return null;
   const config = flow === 'assessment'
-    ? { title: '记录旧版汇总分', subtitle: '该分数不是标准化量表，仅用于迁移既有记录', label: '未验证汇总分', placeholder: '0-100', button: '保存记录', icon: 'clipboard-outline' }
+    ? { title: '新建评估记录', subtitle: '记录当前功能状态；人工汇总分不替代标准化专业评估', label: '功能状态评分（0-100）', placeholder: '0-100', button: '保存评估', icon: 'clipboard-outline' }
     : flow === 'prescription'
       ? { title: '新建处方草稿', subtitle: '草稿不会自动批准、发布或执行', label: '建议时长（分钟）', placeholder: '15', button: '保存草稿', icon: 'medkit-outline' }
       : { title: '新建报告草稿', subtitle: '根据人工录入内容建立草稿，不冒充正式报告文件', label: '报告标题', placeholder: '阶段康复记录', button: '保存草稿', icon: 'document-text-outline' };
@@ -2690,7 +2690,7 @@ function QuickFlowModal({ flow, patients, onClose, addAssessment, addPrescriptio
     if (!patient) { Alert.alert('请先建立患者档案', '患者档案用于关联记录并避免把数据保存到错误对象。'); return; }
     if (flow === 'assessment') {
       const score = clamp(Number(value || 0), 0, 100);
-      addAssessment({ id: uid('a'), patient, date: today, grip: null, rom: null, pain: null, adl: null, score, note: note || '迁移录入的未验证旧版汇总分。', instrument: 'legacy_unvalidated_composite', source: 'manual_entry' });
+      addAssessment({ id: uid('a'), patient, date: today, grip: null, rom: null, pain: null, adl: null, score, note: note || '人工录入的非标准汇总分。', instrument: 'legacy_unvalidated_composite', source: 'manual_entry' });
     } else if (flow === 'prescription') {
       addPrescription({ id: uid('rx'), patient, title: '康复训练草稿', intensity: '待专业人员确认', frequency: '待专业人员确认', duration: (value || 15) + ' 分钟', status: '草稿', focus: note || '待补充', source: 'manual_draft', version: 1, createdAt: new Date().toISOString() });
     } else {
