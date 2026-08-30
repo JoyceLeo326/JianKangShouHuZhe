@@ -1,6 +1,6 @@
 {
   "name": "jiankangshouhuzhe",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.js",
   "scripts": {
     "start": "expo start",
@@ -8,17 +8,20 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "demo": "node scripts/demo.js",
-    "test": "node --test tests/domain/*.test.js && node scripts/product-safety-test.js && node scripts/smoke-test.js",
+    "test": "node --test tests/domain/*.test.js && node --test tests/release-site-structure.test.js && node scripts/product-safety-test.js && node scripts/smoke-test.js",
     "test:domain": "node --test tests/domain/*.test.js",
     "test:product": "node scripts/product-safety-test.js",
-    "check:syntax": "node --check App.js && node --check server/index.js && node --check server/db.js && node --check server/pages.js && node --check scripts/smoke-test.js && node --check scripts/h5-interaction-layout-check.js && node --check scripts/recovery-journey-web-check.js && node --check scripts/start-wechat-demo.js && node --check scripts/prepare-github-pages.js",
+    "test:release-site": "node --test tests/release-site-structure.test.js",
+    "check:syntax": "node --check App.js && node --check server/index.js && node --check server/db.js && node --check server/pages.js && node --check scripts/smoke-test.js && node --check scripts/h5-interaction-layout-check.js && node --check scripts/recovery-journey-web-check.js && node --check scripts/start-wechat-demo.js && node --check scripts/prepare-github-pages.js && node --check scripts/build-release-site.js && node --check scripts/check-release-site.js",
     "server": "node server/index.js",
     "dev:api": "node server/index.js",
     "preview:h5": "node scripts/serve-h5-preview.js",
     "wechat:demo": "node scripts/start-wechat-demo.js",
     "build:web:demo": "expo export --platform web --output-dir dist/wechat-demo",
     "build:pages": "expo export --platform web --output-dir release/github-pages-deploy && node scripts/prepare-github-pages.js",
-    "build:static-mirror": "npm run build:pages",
+    "build:web:release": "node scripts/build-release-site.js",
+    "build:static-mirror": "npm run build:web:release",
+    "check:web:release": "node scripts/check-release-site.js",
     "check:recovery-web": "node scripts/recovery-journey-web-check.js",
     "export:android": "expo export --platform android --output-dir dist/android",
     "check:h5": "node scripts/h5-interaction-layout-check.js",
@@ -46,6 +49,9 @@
     "react-native": "0.81.5",
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0"
+  },
+  "devDependencies": {
+    "pngjs": "^7.0.0"
   },
   "private": true
 }

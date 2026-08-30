@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "product": "健康守护者",
+  "version": "1.1.0",
+  "releasedAt": "2026-08-30",
+  "siteUrl": "https://jiankang-shouhuzhe.netlify.app",
+  "appUrl": "https://jiankang-shouhuzhe.netlify.app/app/",
+  "downloads": {
+    "android": {
+      "label": "Android APK",
+      "fileName": "HealthGuardian-v1.1.0-android.apk",
+      "primaryUrl": "https://github.com/JoyceLeo326/JianKangShouHuZhe/releases/download/v1.1.0/HealthGuardian-v1.1.0-android.apk",
+      "fallbackUrl": "",
+      "sha256": "",
+      "environment": {
+        "primaryUrl": "HEALTH_ANDROID_DOWNLOAD_URL",
+        "fallbackUrl": "HEALTH_ANDROID_FALLBACK_URL",
+        "sha256": "HEALTH_ANDROID_SHA256"
+      }
+    },
+    "windows": {
+      "label": "Windows x64",
+      "fileName": "HealthGuardian-v1.1.0-windows-x64.zip",
+      "primaryUrl": "https://github.com/JoyceLeo326/JianKangShouHuZhe/releases/download/v1.1.0/HealthGuardian-v1.1.0-windows-x64.zip",
+      "fallbackUrl": "",
+      "sha256": "",
+      "environment": {
+        "primaryUrl": "HEALTH_WINDOWS_DOWNLOAD_URL",
+        "fallbackUrl": "HEALTH_WINDOWS_FALLBACK_URL",
+        "sha256": "HEALTH_WINDOWS_SHA256"
+      }
+    }
+  }
+}

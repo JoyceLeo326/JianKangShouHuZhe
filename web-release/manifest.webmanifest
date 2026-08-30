@@ -1,0 +1,28 @@
+{
+  "name": "健康守护者",
+  "short_name": "健康守护者",
+  "description": "手部康复记录、安全自查、人工复核、训练反馈与报告交接。",
+  "id": "/app/",
+  "start_url": "/app/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eff8f4",
+  "theme_color": "#08745f",
+  "lang": "zh-CN",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    {
+      "src": "/assets/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
