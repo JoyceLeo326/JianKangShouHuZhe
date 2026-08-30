@@ -121,9 +121,17 @@ function walkFiles(directory) {
   return files;
 }
 
+function isPublicPrecacheAsset(file) {
+  const relative = path.relative(outputRoot, file).split(path.sep).join('/');
+  return !file.endsWith('.map')
+    && relative !== 'sw.js'
+    && relative !== '.nojekyll'
+    && relative !== '_redirects';
+}
+
 function generateServiceWorker(version) {
   const cacheableFiles = walkFiles(outputRoot)
-    .filter((file) => !file.endsWith('.map') && path.basename(file) !== 'sw.js')
+    .filter(isPublicPrecacheAsset)
     .map((file) => `/${path.relative(outputRoot, file).split(path.sep).join('/')}`)
     .sort();
   const precache = Array.from(new Set(['/', '/app/', ...cacheableFiles]));

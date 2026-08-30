@@ -127,3 +127,29 @@ test('Netlify and package scripts publish the composed release site', () => {
   assert.ok(fs.existsSync(path.join(root, 'scripts', 'check-release-site.js')));
   assert.ok(fs.existsSync(siteRoot));
 });
+
+test('GitHub Pages publishes the complete product site under the repository path', () => {
+  const packageJson = JSON.parse(read('package.json'));
+  assert.equal(
+    packageJson.scripts['build:pages'],
+    'npm run build:web:release && node scripts/prepare-github-pages.js',
+  );
+
+  const prepareScript = read('scripts/prepare-github-pages.js');
+  assert.match(prepareScript, /dist['"], ['"]release-site/);
+  assert.match(prepareScript, /release['"], ['"]github-pages-deploy/);
+  assert.match(prepareScript, /\/JianKangShouHuZhe/);
+  assert.match(prepareScript, /manifest\.webmanifest/);
+  assert.match(prepareScript, /release-manifest\.json/);
+
+  const workflow = read('.github/workflows/github-pages.yml');
+  assert.match(workflow, /npm run build:pages/);
+  assert.match(workflow, /path: release\/github-pages-deploy/);
+});
+
+test('service worker precache excludes hosting control files', () => {
+  const buildScript = read('scripts/build-release-site.js');
+  assert.match(buildScript, /isPublicPrecacheAsset/);
+  assert.match(buildScript, /\.nojekyll/);
+  assert.match(buildScript, /_redirects/);
+});
