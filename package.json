@@ -1,6 +1,8 @@
 {
   "name": "jiankangshouhuzhe",
   "version": "1.1.0",
+  "description": "健康守护者手部康复记录与安全自查应用",
+  "author": "健康守护者项目组",
   "main": "index.js",
   "scripts": {
     "start": "expo start",
@@ -28,7 +30,14 @@
     "check:h5": "node scripts/h5-interaction-layout-check.js",
     "build:android:aab": "eas build -p android --profile production",
     "build:android:apk": "eas build -p android --profile production-apk",
-    "submit:android": "eas submit -p android --profile production"
+    "submit:android": "eas submit -p android --profile production",
+    "desktop:start": "npm run build:desktop:web && electron desktop/main.cjs",
+    "build:desktop:web": "expo export --platform web --output-dir dist/desktop-web --clear",
+    "build:desktop:win": "node scripts/ensure-electron-runtime.js && npm run build:desktop:web && electron-builder --win portable zip --x64 --publish never && node scripts/generate-desktop-checksums.js && node scripts/desktop-artifact-smoke.js",
+    "test:desktop": "node --test tests/desktop/windows-release.test.js",
+    "test:desktop:artifact": "node scripts/desktop-artifact-smoke.js",
+    "test:desktop:runtime": "node scripts/desktop-runtime-smoke.js",
+    "verify:desktop": "npm run test:desktop && npm run build:desktop:win && npm run test:desktop:runtime"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -50,8 +59,49 @@
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0"
   },
+  "private": true,
   "devDependencies": {
+    "electron": "44.0.0",
+    "electron-builder": "26.15.3",
     "pngjs": "^7.0.0"
   },
-  "private": true
+  "build": {
+    "appId": "com.joyceleo.healthguardian.desktop",
+    "productName": "健康守护者",
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "artifactName": "HealthGuardian-${version}-Windows-${arch}.${ext}",
+    "directories": {
+      "output": "dist/windows"
+    },
+    "files": [
+      "desktop/**/*",
+      "dist/desktop-web/**/*",
+      "assets/icon.png",
+      "package.json",
+      "!node_modules/**/*",
+      "!**/*.map"
+    ],
+    "extraMetadata": {
+      "main": "desktop/main.cjs"
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "executableName": "HealthGuardian",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
 }
