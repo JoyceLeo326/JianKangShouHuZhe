@@ -70,5 +70,6 @@ test('desktop shell serves the Expo Web export from a stable local origin and pe
   assert.match(source, /verifyCoreNavigation/);
   assert.match(source, /训练中心/);
   assert.match(source, /数据中心/);
-  assert.match(source, /今日守护/);
+  assert.match(source, /今日工作状态/);
+  assert.match(source, /常用工具/);
 });

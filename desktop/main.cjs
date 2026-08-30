@@ -125,11 +125,14 @@ async function verifyCoreNavigation(window) {
         return label;
       };
 
-      await waitFor(() => bodyContains('健康守护者'), 'formal product UI');
+      await waitFor(
+        () => bodyContains('今日工作状态') && bodyContains('常用工具') && Boolean(findTab('工作台')),
+        'tool-first product workspace',
+      );
       const navigation = [];
       navigation.push(await navigate('训练', '训练中心'));
       navigation.push(await navigate('数据', '数据中心'));
-      navigation.push(await navigate('工作台', '今日守护'));
+      navigation.push(await navigate('工作台', '今日工作状态'));
       return { productRendered: true, navigation };
     })();
   `, true);
