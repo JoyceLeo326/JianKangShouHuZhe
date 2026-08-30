@@ -21,3 +21,9 @@ npm run check:web:release
 - `HEALTH_WINDOWS_SHA256`
 
 正式站点固定为 `https://jiankang-shouhuzhe.netlify.app`，在线应用固定为 `https://jiankang-shouhuzhe.netlify.app/app/`。
+
+## Android 直接安装
+
+从产品页的 Android 下载卡下载 APK，按系统提示完成安装，再点击桌面上的“健康守护者”图标即可直接进入工作台。正式 APK 是可独立使用的 Android App，不需要 Expo Go 或电脑连接；首次进入时按应用内提示完成隐私确认即可开始记录。
+
+Netlify、GitHub 与 Expo 等第三方服务在中国大陆的实际可达性受当地网络环境影响，不作绝对保证。主下载不可用时，可切换产品页提供的备用下载入口；APK 安装完成后，核心流程可在本机使用。
